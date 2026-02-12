@@ -18,10 +18,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import ru.dimarzio.rulearn2.application.Database
 import ru.dimarzio.rulearn2.models.Course
 import ru.dimarzio.rulearn2.utils.ImageFile
-import ru.dimarzio.rulearn2.utils.context
 import ru.dimarzio.rulearn2.utils.deleteDirectory
 import ru.dimarzio.rulearn2.utils.extension
 import ru.dimarzio.rulearn2.utils.getName
@@ -39,6 +39,7 @@ import java.io.InputStream
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
+import kotlin.coroutines.CoroutineContext
 
 abstract class CoursesViewModel(
     private val database: Database,
@@ -104,6 +105,11 @@ abstract class CoursesViewModel(
             }
         )
     }
+
+    private suspend fun <R> context(
+        context: CoroutineContext = Dispatchers.Default,
+        block: () -> R
+    ) = withContext(context) { runCatching<R> { block.invoke() } }
 
     private fun importCsv(`is`: InputStream, tableName: String) {
         database.deleteCourse(tableName)

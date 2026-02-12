@@ -3,7 +3,7 @@ package ru.dimarzio.rulearn2.tflite
 import ru.dimarzio.rulearn2.viewmodels.PreferencesViewModel.Session
 import kotlin.math.ln
 
-class DimarZioProvider : FeaturesProvider {
+class StandardProvider : FeaturesProvider {
     override fun provide(
         id: Int,
         rating: Int,

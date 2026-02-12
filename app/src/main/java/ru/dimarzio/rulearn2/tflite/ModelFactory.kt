@@ -7,7 +7,7 @@ object ModelFactory { // Singleton
 
     fun getModel(course: String, folder: File): TFLiteModel {
         return models.getOrPut(course) {
-            TFLiteModel(course, folder, DimarZioProvider())
+            TFLiteModel(course, folder, StandardProvider())
         }
     }
 

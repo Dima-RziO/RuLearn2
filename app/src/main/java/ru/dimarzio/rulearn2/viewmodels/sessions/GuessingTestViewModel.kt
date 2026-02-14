@@ -13,13 +13,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import ru.dimarzio.rulearn2.models.Word
 import ru.dimarzio.rulearn2.utils.deviceVolume
-import ru.dimarzio.rulearn2.utils.play
-import ru.dimarzio.rulearn2.utils.say
 import ru.dimarzio.rulearn2.utils.sortedBySimilarity2
-import ru.dimarzio.rulearn2.utils.timer
 import ru.dimarzio.rulearn2.utils.whether
+import ru.dimarzio.rulearn2.viewmodels.sessions.media.MediaChainBuilder
 import java.util.Locale
-import kotlin.time.Duration.Companion.seconds
 
 // Do NOT use private val
 class GuessingTestViewModel : ViewModel() {
@@ -80,23 +77,16 @@ class GuessingTestViewModel : ViewModel() {
             }
         }
 
-        val audio = correctWord.randomAudio
-        if (correctId == clicked) {
-            if (audio != null && context.deviceVolume > 0) {
-                player.play(audio, onRefreshRequested)
-            } else if (tts != null && context.deviceVolume > 0) {
-                tts.say(correctWord.name, locale) { success ->
-                    if (success) {
-                        viewModelScope.timer(0.5.seconds, onRefreshRequested)
-                    } else {
-                        viewModelScope.timer(1.5.seconds, onRefreshRequested)
-                    }
-                }
-            } else {
-                viewModelScope.timer(1.5.seconds, onRefreshRequested)
+        val builder = MediaChainBuilder(player, tts, viewModelScope)
+            .addAudios(correctWord.audios?.shuffled() ?: emptyList())
+            .addTTS(correctWord.name, locale)
+            .addFallback()
+        val handler = builder.build()
+
+        handler.handle(context.deviceVolume) {
+            if (correctId == clicked) {
+                onRefreshRequested.invoke()
             }
-        } else { // Incorrect
-            audio?.let { player.play(audio) } ?: tts?.say(correctWord.name, locale)
         }
     }
 

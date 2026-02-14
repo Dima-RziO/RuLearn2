@@ -435,6 +435,8 @@ fun AboutDialog(onDismissRequest: () -> Unit) {
         text = {
             Text(
                 text = "Changelog:\n" +
+                        "• Early TFLite support\n" +
+                        "• Refactored code\n" +
                         "• General bug fixes and other improvements"
             )
         }

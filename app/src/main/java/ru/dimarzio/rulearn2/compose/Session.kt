@@ -8,9 +8,12 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.BottomSheetScaffold
@@ -52,8 +55,13 @@ fun SessionContainer(
         scaffoldState = scaffoldState,
         sheetContent = {
             BoxWithConstraints {
-                val maxHeight = this.maxHeight * 0.88f
-                Column(modifier = Modifier.heightIn(max = maxHeight)) {
+                val topBarHeight = 64.dp // 64.dp is a standard height.
+                val indicatorHeight = 4.dp // 4.dp is a standard height.
+
+                val padding = WindowInsets.systemBars.asPaddingValues().calculateTopPadding()
+                val maxSheetHeight = this.maxHeight - topBarHeight - indicatorHeight - padding
+
+                Column(modifier = Modifier.heightIn(max = maxSheetHeight)) {
                     Text(
                         text = label,
                         modifier = Modifier.padding(10.dp)

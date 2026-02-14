@@ -36,6 +36,7 @@ import ru.dimarzio.rulearn2.utils.play
 import ru.dimarzio.rulearn2.utils.toast
 import ru.dimarzio.rulearn2.viewmodels.WordViewModel
 import ru.dimarzio.rulearn2.viewmodels.sessions.GuessingTestViewModel
+import ru.dimarzio.rulearn2.viewmodels.sessions.NewWordViewModel
 import ru.dimarzio.rulearn2.viewmodels.sessions.TypingTestViewModel
 import java.util.Locale
 
@@ -96,6 +97,8 @@ fun LearnNewWords(
             exitTransition = { ExitTransition.None }
         ) {
             composable(SessionRoutes.NewWord.route) {
+                val newWordViewModel = viewModel<NewWordViewModel>()
+
                 LaunchedEffect(key1 = currentWord, key2 = currentId) {
                     if (!ended) {
                         if (currentWord.rating in 1..8) {
@@ -124,7 +127,10 @@ fun LearnNewWords(
                     },
                     ended = ended,
                     hidden = hidden,
-                    onContinueClick = { onWordUpdated(currentId, currentWord.copy(rating = 1)) },
+                    onContinueClick = {
+                        newWordViewModel.next(context, player, tts, locale, currentWord)
+                        onWordUpdated(currentId, currentWord.copy(rating = 1))
+                    },
                     maxRating = 10
                 )
             }

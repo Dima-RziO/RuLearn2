@@ -10,7 +10,7 @@ import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
 
-data class Word(
+data class Word( // Prototype
     // Map<K, V> value
     val name: String,
     val translation: String,

@@ -1,10 +1,9 @@
-package ru.dimarzio.rulearn2.viewmodels.sessions
+package ru.dimarzio.rulearn2.viewmodels.sessions.media
 
 import kotlinx.coroutines.CoroutineScope
-import kotlin.time.Duration
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
-import java.io.File
+import kotlinx.coroutines.launch
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 class FallbackHandler(private val scope: CoroutineScope) : MediaHandler() {
@@ -13,7 +12,7 @@ class FallbackHandler(private val scope: CoroutineScope) : MediaHandler() {
         onEnd()
     }
 
-    override fun handle(audio: File?, phrase: String, deviceVolume: Int, onHandled: () -> Unit) {
+    override fun handle(deviceVolume: Int, onHandled: () -> Unit) {
         timer(1.5.seconds, onHandled)
     }
 }

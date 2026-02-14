@@ -14,14 +14,11 @@ import androidx.lifecycle.viewModelScope
 import ru.dimarzio.rulearn2.models.Word
 import ru.dimarzio.rulearn2.utils.deviceVolume
 import ru.dimarzio.rulearn2.utils.normalized
-import ru.dimarzio.rulearn2.utils.play
-import ru.dimarzio.rulearn2.utils.say
-import ru.dimarzio.rulearn2.utils.timer
+import ru.dimarzio.rulearn2.viewmodels.sessions.media.MediaChainBuilder
 import vladis.luv.rulearn.Utils
 import java.util.Locale
-import kotlin.time.Duration.Companion.seconds
 
-class TypingTestViewModel() : ViewModel() {
+class TypingTestViewModel : ViewModel() {
     var inputEnabled by mutableStateOf(true)
         private set
     var error by mutableStateOf(false)
@@ -104,23 +101,16 @@ class TypingTestViewModel() : ViewModel() {
             inputValue = TextFieldValue(word.name)
         }
 
-        val audio = word.randomAudio
-        if (correct) {
-            if (audio != null && context.deviceVolume > 0) {
-                player.play(audio, onRefreshRequested)
-            } else if (tts != null && context.deviceVolume > 0) {
-                tts.say(word.name, locale) { success ->
-                    if (success) {
-                        viewModelScope.timer(0.5.seconds, onRefreshRequested)
-                    } else {
-                        viewModelScope.timer(1.5.seconds, onRefreshRequested)
-                    }
-                }
-            } else {
-                viewModelScope.timer(1.5.seconds, onRefreshRequested)
+        val builder = MediaChainBuilder(player, tts, viewModelScope)
+            .addAudios(word.audios?.shuffled() ?: emptyList())
+            .addTTS(word.name, locale)
+            .addFallback()
+        val handler = builder.build()
+
+        handler.handle(context.deviceVolume) {
+            if (correct) {
+                onRefreshRequested.invoke()
             }
-        } else { // Incorrect
-            audio?.let { player.play(audio) } ?: tts?.say(word.name, locale)
         }
     }
 

@@ -66,7 +66,7 @@ class LearnWordsViewModel(courseWords: Map<Int, Word>, level: String?, limit: In
             val newWord = word.copy(
                 accessed = newAccessed,
                 rating = if (correct) word.rating + 1 else word.rating - 1,
-                secondsLapsed = newAccessed - word.accessed,
+                secondsLapsed = (newAccessed - word.accessed) / 1000,
                 typeRepeat = PreferencesViewModel.Session.LearnNewWords,
                 hintsUsed = hintsUsed
             )

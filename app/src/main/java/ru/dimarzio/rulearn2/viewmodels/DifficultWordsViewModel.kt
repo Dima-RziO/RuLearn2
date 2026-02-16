@@ -111,7 +111,7 @@ class DifficultWordsViewModel(
                         word.correctAnswers
                     },
                     secondsLapsed = if (word.isRepeat) {
-                        newAccessed - word.accessed
+                        (newAccessed - word.accessed) / 1000
                     } else {
                         word.secondsLapsed
                     },

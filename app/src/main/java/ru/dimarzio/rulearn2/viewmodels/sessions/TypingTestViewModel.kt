@@ -14,7 +14,7 @@ import androidx.lifecycle.viewModelScope
 import ru.dimarzio.rulearn2.models.Word
 import ru.dimarzio.rulearn2.utils.deviceVolume
 import ru.dimarzio.rulearn2.utils.normalized
-import ru.dimarzio.rulearn2.viewmodels.sessions.media.MediaChainBuilder
+import ru.dimarzio.rulearn2.viewmodels.sessions.media.MediaFacade
 import vladis.luv.rulearn.Utils
 import java.util.Locale
 
@@ -101,17 +101,17 @@ class TypingTestViewModel : ViewModel() {
             inputValue = TextFieldValue(word.name)
         }
 
-        val builder = MediaChainBuilder(player, tts, viewModelScope)
-            .addAudios(word.audios?.shuffled() ?: emptyList())
-            .addTTS(word.name, locale)
-            .addFallback()
-        val handler = builder.build()
-
-        handler.handle(context.deviceVolume) {
+        val onPlayed = {
             if (correct) {
                 onRefreshRequested.invoke()
             }
         }
+
+        MediaFacade.play(
+            player, tts, viewModelScope,
+            word.audios, word.name, locale,
+            context.deviceVolume, onPlayed
+        )
     }
 
     fun reset() {

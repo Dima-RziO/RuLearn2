@@ -7,7 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import ru.dimarzio.rulearn2.models.Word
 import ru.dimarzio.rulearn2.utils.deviceVolume
-import ru.dimarzio.rulearn2.viewmodels.sessions.media.MediaChainBuilder
+import ru.dimarzio.rulearn2.viewmodels.sessions.media.MediaFacade
 import java.util.Locale
 
 class NewWordViewModel : ViewModel() {
@@ -18,12 +18,10 @@ class NewWordViewModel : ViewModel() {
         locale: Locale,
         word: Word
     ) {
-        val builder = MediaChainBuilder(player, tts, viewModelScope)
-            .addAudios(word.audios ?: emptyList())
-            .addTTS(word.name, locale)
-            .addFallback()
-        val handler = builder.build()
-
-        handler.handle(context.deviceVolume)
+        MediaFacade.play(
+            player, tts, viewModelScope,
+            word.audios, word.name, locale,
+            context.deviceVolume
+        )
     }
 }

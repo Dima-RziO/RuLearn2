@@ -15,7 +15,7 @@ import ru.dimarzio.rulearn2.models.Word
 import ru.dimarzio.rulearn2.utils.deviceVolume
 import ru.dimarzio.rulearn2.utils.sortedBySimilarity2
 import ru.dimarzio.rulearn2.utils.whether
-import ru.dimarzio.rulearn2.viewmodels.sessions.media.MediaChainBuilder
+import ru.dimarzio.rulearn2.viewmodels.sessions.media.MediaFacade
 import java.util.Locale
 
 // Do NOT use private val
@@ -77,20 +77,16 @@ class GuessingTestViewModel : ViewModel() {
             }
         }
 
-        val builder = MediaChainBuilder(player, tts, viewModelScope)
-            .addAudios(correctWord.audios?.shuffled() ?: emptyList())
-            .addTTS(correctWord.name, locale)
-            .addFallback()
-        val handler = builder.build()
+        val onPlayed = { if (clicked == correctId) { onRefreshRequested.invoke() } }
 
-        handler.handle(context.deviceVolume) {
-            if (correctId == clicked) {
-                onRefreshRequested.invoke()
-            }
-        }
+        MediaFacade.play(
+            player, tts, viewModelScope,
+            correctWord.audios, correctWord.name, locale,
+            context.deviceVolume, onPlayed
+        )
     }
 
-    fun regenerateTranslations(
+    fun generateTranslations(
         scope: CoroutineScope,
         id: Int,
         word: Word,

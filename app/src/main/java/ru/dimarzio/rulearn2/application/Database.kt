@@ -3,6 +3,7 @@ package ru.dimarzio.rulearn2.application
 import android.content.ContentValues
 import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
+import androidx.core.database.getIntOrNull
 import androidx.core.database.getStringOrNull
 import ru.dimarzio.rulearn2.models.Course
 import ru.dimarzio.rulearn2.models.Word
@@ -299,7 +300,7 @@ class Database(private val folder: File) { // Not singleton!
                         secondsLapsed = getLong(11),
                         typeRepeat = PreferencesViewModel.Session
                             .entries
-                            .getOrNull(getInt(12)),
+                            .getOrNull(getIntOrNull(12) ?: -1),
                         hintsUsed = getInt(13)
                     )
                 }

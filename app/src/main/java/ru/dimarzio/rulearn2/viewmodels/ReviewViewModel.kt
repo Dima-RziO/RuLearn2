@@ -89,7 +89,7 @@ class ReviewViewModel(
                     } else {
                         word.correctAnswers
                     },
-                    secondsLapsed = newAccessed - word.accessed,
+                    secondsLapsed = (newAccessed - word.accessed) / 1000,
                     typeRepeat = typeRepeat,
                     hintsUsed = hintsUsed
                 )

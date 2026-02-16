@@ -9,6 +9,7 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 data class Word( // Prototype
     // Map<K, V> value
@@ -22,9 +23,9 @@ data class Word( // Prototype
     val rating: Int,
     val repetitions: Int, // n_repeat
     val correctAnswers: Int, // sum_correct
-    val secondsLapsed: Long,
+    val secondsLapsed: Long, // s_lapsed
     val typeRepeat: PreferencesViewModel.Session?,
-    val hintsUsed: Int
+    val hintsUsed: Int // n_hint
 ) {
     private val repeatInterval
         get() = if (!skip) {
@@ -62,6 +63,8 @@ data class Word( // Prototype
         } else {
             Duration.INFINITE
         }
+
+    val timeLapsed = secondsLapsed.seconds
 
     val isRepeat get() = repeatDuration == Duration.ZERO
     val isDifficult = difficult && rating >= 10 && !skip

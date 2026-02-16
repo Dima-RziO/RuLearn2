@@ -106,7 +106,7 @@ fun GuessingReview(
                         hide(false)
 
                         coroutineScope.launch {
-                            val result = guessingTestViewModel.regenerateTranslations(
+                            val result = guessingTestViewModel.generateTranslations(
                                 this,
                                 currentId,
                                 currentWord,

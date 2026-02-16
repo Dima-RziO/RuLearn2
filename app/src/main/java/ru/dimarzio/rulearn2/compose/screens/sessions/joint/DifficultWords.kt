@@ -173,7 +173,7 @@ fun DifficultWords(
                         hide(false)
 
                         coroutineScope.launch {
-                            val deferred = guessingTestViewModel.regenerateTranslations(
+                            val deferred = guessingTestViewModel.generateTranslations(
                                 this,
                                 currentId,
                                 currentWord,

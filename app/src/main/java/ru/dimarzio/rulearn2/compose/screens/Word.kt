@@ -66,8 +66,10 @@ import ru.dimarzio.rulearn2.models.Word
 import ru.dimarzio.rulearn2.utils.format
 import ru.dimarzio.rulearn2.utils.say
 import ru.dimarzio.rulearn2.utils.toast
+import ru.dimarzio.rulearn2.viewmodels.PreferencesViewModel
 import java.io.File
 import java.util.Locale
+import kotlin.enums.enumEntries
 import kotlin.math.roundToInt
 import kotlin.time.Duration
 
@@ -160,6 +162,19 @@ fun Word(
 
                 Spacer(Modifier.size(10.dp))
 
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    LevelField(
+                        level = word.level,
+                        levels = otherLevels,
+                        onLevelChange = { level -> onWordUpdated(word.copy(level = level)) }
+                    )
+                }
+
+                Spacer(modifier = Modifier.size(10.dp))
+
                 Row(
                     horizontalArrangement = Arrangement.SpaceEvenly,
                     modifier = Modifier
@@ -177,12 +192,28 @@ fun Word(
 
                     RepeatInterval(
                         modifier = Modifier.fillMaxHeight(),
+                        lastlyRepeated = word.lastlyRepeated,
+                        repeatDuration = word.repeatDuration,
+                        timeLapsed = word.timeLapsed
+                    )
+                }
+
+                Spacer(modifier = Modifier.size(10.dp))
+
+                Row(
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    RatioFields(
                         correctAnswers = word.correctAnswers,
                         onCorrectAnswersChange = { onWordUpdated(word.copy(correctAnswers = it)) },
                         repetitions = word.repetitions,
-                        onRepetitionsChange = { onWordUpdated(word.copy(repetitions = it)) },
-                        lastlyRepeated = word.lastlyRepeated,
-                        repeatDuration = word.repeatDuration
+                        onRepetitionsChange = { onWordUpdated(word.copy(repetitions = it)) }
+                    )
+
+                    HintsPicker(
+                        hintsUsed = word.hintsUsed,
+                        onHintsUsedChange = { onWordUpdated(word.copy(hintsUsed = it)) }
                     )
                 }
 
@@ -192,10 +223,9 @@ fun Word(
                     modifier = Modifier.fillMaxWidth(),
                     contentAlignment = Alignment.Center
                 ) {
-                    LevelField(
-                        level = word.level,
-                        levels = otherLevels,
-                        onLevelChange = { level -> onWordUpdated(word.copy(level = level)) }
+                    SessionField(
+                        session = word.typeRepeat,
+                        onSessionChange = { onWordUpdated(word.copy(typeRepeat = it)) }
                     )
                 }
 
@@ -504,6 +534,48 @@ private fun Checkboxes(
 }
 
 @Composable
+private fun LastlyRepeated(lastlyRepeated: Duration) {
+    if (lastlyRepeated.isFinite()) {
+        Text(text = "Lastly repeated " + lastlyRepeated.format() + " ago")
+    } else {
+        Text(text = "Never repeated before")
+    }
+}
+
+@Composable
+private fun NextRepetition(repeatDuration: Duration) {
+    when (repeatDuration) {
+        Duration.INFINITE -> Text(text = "Next repetition never")
+        Duration.ZERO -> Text(text = "Next repetition now")
+        else -> Text(text = "Next repetition in " + repeatDuration.format())
+    }
+}
+
+@Composable
+private fun TimeLapsed(timeLapsed: Duration) {
+    Text(text = timeLapsed.format() + " lapsed")
+}
+
+@Composable
+private fun RepeatInterval(
+    modifier: Modifier = Modifier,
+    lastlyRepeated: Duration,
+    repeatDuration: Duration,
+    timeLapsed: Duration
+) {
+    Column(
+        verticalArrangement = Arrangement.SpaceEvenly,
+        modifier = modifier
+    ) {
+        LastlyRepeated(lastlyRepeated = lastlyRepeated)
+
+        NextRepetition(repeatDuration = repeatDuration)
+
+        TimeLapsed(timeLapsed = timeLapsed)
+    }
+}
+
+@Composable
 private fun RatioFields(
     correctAnswers: Int,
     onCorrectAnswersChange: (Int) -> Unit,
@@ -533,47 +605,64 @@ private fun RatioFields(
 }
 
 @Composable
-private fun LastlyRepeated(lastlyRepeated: Duration) {
-    if (lastlyRepeated.isFinite()) {
-        Text(text = "Lastly repeated " + lastlyRepeated.format() + " ago")
-    } else {
-        Text(text = "Never repeated before")
-    }
-}
-
-@Composable
-private fun NextRepetition(repeatDuration: Duration) {
-    when (repeatDuration) {
-        Duration.INFINITE -> Text(text = "Next repetition never")
-        Duration.ZERO -> Text(text = "Next repetition now")
-        else -> Text(text = "Next repetition in " + repeatDuration.format())
-    }
-}
-
-@Composable
-private fun RepeatInterval(
-    modifier: Modifier = Modifier,
-    correctAnswers: Int,
-    onCorrectAnswersChange: (Int) -> Unit,
-    repetitions: Int,
-    onRepetitionsChange: (Int) -> Unit,
-    lastlyRepeated: Duration,
-    repeatDuration: Duration
+private fun HintsPicker(
+    hintsUsed: Int,
+    onHintsUsedChange: (Int) -> Unit
 ) {
-    Column(
-        verticalArrangement = Arrangement.SpaceEvenly,
-        modifier = modifier
+    NumberPicker(
+        value = hintsUsed,
+        onValueChange = onHintsUsedChange,
+        range = 0..Int.MAX_VALUE,
+        label = "n_hint"
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SessionField(
+    session: PreferencesViewModel.Session?,
+    onSessionChange: (PreferencesViewModel.Session) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it },
     ) {
-        RatioFields(
-            correctAnswers = correctAnswers,
-            onCorrectAnswersChange = onCorrectAnswersChange,
-            repetitions = repetitions,
-            onRepetitionsChange = onRepetitionsChange
+        TextField(
+            value = session?.name.toString(),
+            onValueChange = {},
+            readOnly = true,
+            trailingIcon = {
+                ExposedDropdownMenuDefaults.TrailingIcon(
+                    expanded = expanded,
+                    Modifier.menuAnchor(MenuAnchorType.PrimaryEditable)
+                )
+            },
+            singleLine = true,
+            colors = ExposedDropdownMenuDefaults.textFieldColors(),
+            label = {
+                Text(text = "Type repeat")
+            }
         )
 
-        LastlyRepeated(lastlyRepeated = lastlyRepeated)
-
-        NextRepetition(repeatDuration = repeatDuration)
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            enumEntries<PreferencesViewModel.Session>().forEach { session ->
+                DropdownMenuItem(
+                    text = {
+                        Text(text = session.name)
+                    },
+                    onClick = {
+                        onSessionChange(session)
+                        expanded = false
+                    },
+                    contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
+                )
+            }
+        }
     }
 }
 

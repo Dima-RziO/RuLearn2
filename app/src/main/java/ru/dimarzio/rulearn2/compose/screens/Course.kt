@@ -58,8 +58,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.launch
 import ru.dimarzio.rulearn2.R
 import ru.dimarzio.rulearn2.compose.AboutDialog
@@ -71,6 +69,7 @@ import ru.dimarzio.rulearn2.compose.SwipeToRevealBox
 import ru.dimarzio.rulearn2.compose.TextFieldDialog
 import ru.dimarzio.rulearn2.models.Level
 import ru.dimarzio.rulearn2.models.Word
+import ru.dimarzio.rulearn2.tflite.Loss
 import ru.dimarzio.rulearn2.utils.percentageFrom
 import ru.dimarzio.rulearn2.utils.toast
 import ru.dimarzio.rulearn2.viewmodels.Filter
@@ -81,6 +80,9 @@ fun Course(
     course: String,
     onNavigationIconClick: () -> Unit,
     onAddActionClick: (String) -> Unit,
+    model: String?,
+    loss: Loss,
+    onTrainActionClick: () -> Unit,
     filterRepeat: Boolean,
     filterNotRepeat: Boolean,
     filterDifficult: Boolean,
@@ -95,7 +97,7 @@ fun Course(
     searchResults: Map<String, Map<Int, Word>>,
     query: String,
     onQueryChange: (String) -> Unit,
-    onSearch: (CoroutineScope) -> Deferred<Boolean>,
+    onSearch: () -> Unit,
     words: Map<Int, Word>,
     selectedSession: Session,
     onLearnNewWordsClick: () -> Unit,
@@ -148,6 +150,9 @@ fun Course(
                 onSearch = onSearch,
                 onNavigationIconClick = onNavigationIconClick,
                 onAddActionClick = onAddActionClick,
+                model = model,
+                loss = loss,
+                onTrainActionClick = onTrainActionClick,
                 filterRepeat = filterRepeat,
                 filterNotRepeat = filterNotRepeat,
                 filterDifficult = filterDifficult,
@@ -325,9 +330,12 @@ private fun AppBar(
     results: Map<String, Map<Int, Word>>,
     query: String,
     onQueryChange: (String) -> Unit,
-    onSearch: CoroutineScope.() -> Deferred<Boolean>,
+    onSearch: () -> Unit,
     onNavigationIconClick: () -> Unit,
     onAddActionClick: (String) -> Unit,
+    model: String?,
+    loss: Loss,
+    onTrainActionClick: () -> Unit,
     filterRepeat: Boolean,
     filterNotRepeat: Boolean,
     filterDifficult: Boolean,
@@ -342,9 +350,6 @@ private fun AppBar(
 ) {
     var expanded by remember { mutableStateOf(false) }
 
-    val coroutineScope = rememberCoroutineScope()
-    val context = LocalContext.current
-
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier.fillMaxWidth()
@@ -354,13 +359,7 @@ private fun AppBar(
                 SearchBarDefaults.InputField(
                     query = query,
                     onQueryChange = onQueryChange,
-                    onSearch = { _ ->
-                        coroutineScope.launch {
-                            if (!onSearch().await()) {
-                                context.toast("Nothing found")
-                            }
-                        }
-                    },
+                    onSearch = { _ -> onSearch.invoke() },
                     expanded = expanded,
                     onExpandedChange = { expanded = it },
                     leadingIcon = {
@@ -376,6 +375,9 @@ private fun AppBar(
                             TopBarActions(
                                 expanded = expanded,
                                 onAddActionClick = onAddActionClick,
+                                model = model,
+                                loss = loss,
+                                onTrainActionClick = onTrainActionClick,
                                 filterRepeat = filterRepeat,
                                 filterNotRepeat = filterNotRepeat,
                                 filterDifficult = filterDifficult,
@@ -390,7 +392,14 @@ private fun AppBar(
                         }
                     },
                     placeholder = {
-                        Text(text = course)
+                        Text(
+                            text = course,
+                            fontStyle = if (model != null) {
+                                FontStyle.Italic
+                            } else {
+                                FontStyle.Normal
+                            }
+                        )
                     }
                 )
             },
@@ -432,6 +441,50 @@ private fun AddLevelDialog(
         title = "New level",
         initialInput = "",
         label = "Level name"
+    )
+}
+
+@Composable
+private fun TFLiteDialog(
+    onDismissRequest: () -> Unit,
+    onConfirmation: () -> Unit,
+    model: String,
+    loss: Loss
+) {
+    AlertDialog(
+        onDismissRequest = onDismissRequest,
+        confirmButton = {
+            TextButton(
+                enabled = false, // TODO
+                onClick = {
+                    onDismissRequest()
+                    onConfirmation()
+                }
+            ) {
+                Text(text = "Retrain")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismissRequest) {
+                Text(text = "Cancel")
+            }
+        },
+        title = {
+            Text(text = model)
+        },
+        text = {
+            Column {
+                Text(
+                    text = "Current MAE = " + loss.mae
+                )
+
+                Text(
+                    text = "RMSE = " + loss.rmse
+                )
+
+                Text(text = "R2 = " + loss.r2)
+            }
+        }
     )
 }
 
@@ -482,6 +535,9 @@ private fun FilterDialog(
 private fun TopBarActions(
     expanded: Boolean,
     onAddActionClick: (String) -> Unit,
+    model: String?,
+    loss: Loss,
+    onTrainActionClick: () -> Unit,
     filterRepeat: Boolean,
     filterNotRepeat: Boolean,
     filterDifficult: Boolean,
@@ -493,7 +549,10 @@ private fun TopBarActions(
     onFilterActionClick: Filter,
     onSettingsActionClick: () -> Unit
 ) {
+    val context = LocalContext.current
+
     var showAddDialog by remember { mutableStateOf(false) }
+    var showTFLiteDialog by remember { mutableStateOf(false) }
     var showFilterDialog by remember { mutableStateOf(false) }
     var showAboutDialog by remember { mutableStateOf(false) }
 
@@ -501,6 +560,15 @@ private fun TopBarActions(
         AddLevelDialog(
             onDismissRequest = { showAddDialog = false },
             onConfirmation = onAddActionClick
+        )
+    }
+
+    if (showTFLiteDialog) {
+        TFLiteDialog(
+            onDismissRequest = { showTFLiteDialog = false },
+            onConfirmation = onTrainActionClick,
+            model = model!!,
+            loss = loss
         )
     }
 
@@ -533,8 +601,16 @@ private fun TopBarActions(
             Triple(null, "About") { showAboutDialog = true }
         )
     } else {
+        val trainIcon = ImageVector.vectorResource(id = R.drawable.baseline_model_training_24)
         AppBarActions(
             Triple(Icons.Filled.Add, "Add level") { showAddDialog = true },
+            Triple(trainIcon, "Train model") {
+                if (model != null) {
+                    showTFLiteDialog = true
+                } else {
+                    context.toast("Model is not loaded.")
+                }
+            },
             Triple(null, "Settings", onSettingsActionClick),
             Triple(null, "About") { showAboutDialog = true }
         )

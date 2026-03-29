@@ -63,15 +63,18 @@ import ru.dimarzio.rulearn2.compose.NavigationIcon
 import ru.dimarzio.rulearn2.compose.NumberPicker
 import ru.dimarzio.rulearn2.compose.SelectAudioDialog
 import ru.dimarzio.rulearn2.models.Word
-import ru.dimarzio.rulearn2.utils.format
 import ru.dimarzio.rulearn2.utils.say
 import ru.dimarzio.rulearn2.utils.toast
 import ru.dimarzio.rulearn2.viewmodels.PreferencesViewModel
 import java.io.File
+import java.time.Instant
+import java.time.LocalTime
+import java.time.ZoneId
 import java.util.Locale
 import kotlin.enums.enumEntries
 import kotlin.math.roundToInt
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -87,8 +90,8 @@ fun Word(
     onAudioClick: (File) -> Unit,
     onAccessedClick: (dateMillis: Long, minutes: Int, hour: Int) -> Unit,
     onWordUpdated: (Word) -> Unit,
-    levelsForName: Set<String>,
-    levelsForTranslation: Set<String>,
+    levelsForName: List<String>,
+    levelsForTranslation: List<String>,
     otherLevels: Set<String>,
     onWordSaved: () -> Unit
 ) {
@@ -194,7 +197,7 @@ fun Word(
                         modifier = Modifier.fillMaxHeight(),
                         lastlyRepeated = word.lastlyRepeated,
                         repeatDuration = word.repeatDuration,
-                        timeLapsed = word.timeLapsed
+                        timeLapsed = word.secondsLapsed.seconds
                     )
                 }
 
@@ -306,6 +309,11 @@ private fun ConfirmDeleteDialog(
     )
 }
 
+private fun LocalTime(millis: Long): LocalTime = Instant
+    .ofEpochMilli(millis)
+    .atZone(ZoneId.systemDefault())
+    .toLocalTime()
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AppBarActions(
@@ -364,8 +372,8 @@ private fun AppBarActions(
 
     val datePickerState = rememberDatePickerState(initialSelectedDateMillis = word.accessed)
     val timePickerState = rememberTimePickerState(
-        initialMinute = word.accessedMinutes,
-        initialHour = word.accessedHours
+        initialMinute = LocalTime(word.accessed).minute,
+        initialHour = LocalTime(word.accessed).hour
     )
 
     if (showDatePickerDialog) {
@@ -442,10 +450,10 @@ private fun AppBarActions(
 private fun InputFields(
     name: String,
     onNameChanged: (String) -> Unit,
-    levelsForName: Set<String>,
+    levelsForName: List<String>,
     translation: String,
     onTranslationChanged: (String) -> Unit,
-    levelsForTranslation: Set<String>
+    levelsForTranslation: List<String>
 ) {
     Column(modifier = Modifier.width(IntrinsicSize.Max)) {
         OutlinedTextField(
@@ -548,6 +556,15 @@ private fun NextRepetition(repeatDuration: Duration) {
         Duration.INFINITE -> Text(text = "Next repetition never")
         Duration.ZERO -> Text(text = "Next repetition now")
         else -> Text(text = "Next repetition in " + repeatDuration.format())
+    }
+}
+
+private fun Duration.format() = toComponents { days, hours, minutes, seconds, _ ->
+    when {
+        days != 0L -> "$days days"
+        hours != 0 -> "$hours hours"
+        minutes != 0 -> "$minutes minutes"
+        else -> "$seconds seconds"
     }
 }
 

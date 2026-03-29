@@ -12,12 +12,20 @@ import androidx.compose.foundation.gestures.anchoredDraggable
 import androidx.compose.foundation.gestures.animateTo
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Create
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
@@ -29,8 +37,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import ru.dimarzio.rulearn2.R
 import kotlin.math.roundToInt
 
 private enum class SwipeToRevealBoxValue {
@@ -137,5 +148,69 @@ fun SwipeToRevealBox(
                 content()
             }
         }
+    }
+}
+
+@Composable
+fun RenameDeleteBox(
+    onRenameClick: () -> Unit,
+    onDeleteClick: () -> Unit,
+    content: @Composable () -> Unit
+) {
+    SwipeToRevealBox(
+        hiddenContentStart = {
+            Icon(
+                imageVector = Icons.Filled.Create,
+                contentDescription = "Rename"
+            )
+        },
+        onHiddenContentStartClick = onRenameClick,
+        hiddenContentEnd = {
+            Row {
+                Text(text = "Delete")
+
+                Spacer(modifier = Modifier.size(5.dp))
+
+                Icon(
+                    imageVector = Icons.Filled.Delete,
+                    contentDescription = "Delete"
+                )
+            }
+        },
+        onHiddenContentEndClick = onDeleteClick,
+        content = content
+    )
+}
+
+@Composable
+fun DeleteBox(
+    onDeleteClick: () -> Unit,
+    onAudioClick: () -> Unit,
+    content: @Composable () -> Unit
+) {
+    SwipeToRevealBox(
+        hiddenContentEnd = {
+            Row {
+                Text(text = "Delete")
+
+                Spacer(modifier = Modifier.size(5.dp))
+
+                Icon(
+                    imageVector = Icons.Filled.Delete,
+                    contentDescription = "Delete"
+                )
+            }
+        },
+        hiddenContentEndBackground = MaterialTheme.colorScheme.errorContainer,
+        onHiddenContentEndClick = onDeleteClick,
+        hiddenContentStart = {
+            Icon(
+                painter = painterResource(id = R.drawable.baseline_sound_24),
+                contentDescription = "Play audio"
+            )
+        },
+        onHiddenContentStartClick = onAudioClick
+    ) {
+        content()
     }
 }

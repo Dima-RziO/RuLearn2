@@ -11,8 +11,8 @@
       "type": "SINGLE",
       "filters": [],
       "attributes": [],
-      "versionCode": 28,
-      "versionName": "2.5.0-DEV",
+      "versionCode": 30,
+      "versionName": "2.7.0-CANARY",
       "outputFile": "app-release.apk"
     }
   ],

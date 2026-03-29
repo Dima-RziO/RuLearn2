@@ -17,6 +17,7 @@ import ru.dimarzio.rulearn2.application.RepeatReceiver
 import ru.dimarzio.rulearn2.utils.notifyPermissionGranted
 import ru.dimarzio.rulearn2.utils.storagePermissionGranted
 import java.io.File
+import kotlin.String
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
 
@@ -130,6 +131,22 @@ class PreferencesViewModel(private val application: Application) : ViewModel() {
         TypingReview,
         GuessingReview
     }
+
+    data class Settings(
+        val selectedCourse: String,
+        val selectedSession: Session,
+        val markDifficult: Boolean,
+        val papasHints: Boolean,
+        val similarWords: Boolean,
+        val skippedWords: Boolean,
+        val tts: Boolean,
+        val backGesture: Boolean,
+        val notify: Boolean,
+        val notifyPer: Duration,
+        val useCustomFolder: Boolean,
+        val customFolderPath: String?,
+        val dynamicColors: Boolean
+    )
 
     fun scheduleRepeatReceiver(duration: Duration) {
         application.getSystemService<AlarmManager>()?.setRepeating(
@@ -252,5 +269,5 @@ class PreferencesViewModel(private val application: Application) : ViewModel() {
         dynamicColors = with
     }
 
-    override fun onCleared() = database.database.close()
+    override fun onCleared() = database.close()
 }

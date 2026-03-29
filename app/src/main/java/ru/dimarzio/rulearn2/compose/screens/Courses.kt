@@ -5,8 +5,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -14,7 +12,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
@@ -40,6 +37,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -49,8 +47,8 @@ import ru.dimarzio.rulearn2.compose.AboutDialog
 import ru.dimarzio.rulearn2.compose.AppBarActions
 import ru.dimarzio.rulearn2.compose.MultiChoiceDialog
 import ru.dimarzio.rulearn2.compose.ProgressDialog
+import ru.dimarzio.rulearn2.compose.RenameDeleteBox
 import ru.dimarzio.rulearn2.compose.SingleChoiceDialog
-import ru.dimarzio.rulearn2.compose.SwipeToRevealBox
 import ru.dimarzio.rulearn2.compose.TextFieldDialog
 import ru.dimarzio.rulearn2.models.Course
 import ru.dimarzio.rulearn2.utils.toast
@@ -72,6 +70,7 @@ fun Courses(
     onCourseClick: (String) -> Unit,
     onDeleteCourseClick: (String) -> Unit,
     onRenameClick: (String, String) -> Unit,
+    modelLoaded: (String) -> Boolean,
     onChangeIconClick: (String) -> Unit,
     importProgress: Float?,
     deleteProgress: Float?,
@@ -164,6 +163,7 @@ fun Courses(
             onExportCourseClick = onExportCsvClick,
             onDeleteCourseClick = onDeleteCourseClick,
             onRenameClick = onRenameClick,
+            modelLoaded = modelLoaded,
             onChangeIconClick = onChangeIconClick
         )
     }
@@ -390,6 +390,7 @@ private fun CoursesList(
     onExportCourseClick: (String) -> Unit,
     onDeleteCourseClick: (String) -> Unit,
     onRenameClick: (String, String) -> Unit,
+    modelLoaded: (String) -> Boolean,
     onChangeIconClick: (String) -> Unit
 ) {
     LazyColumn(modifier = modifier) {
@@ -397,47 +398,14 @@ private fun CoursesList(
             CoursesListItem(
                 name = name,
                 course = course,
-                onClick = {
-                    onCourseClick(name)
-                },
-                onExportClick = {
-                    onExportCourseClick(name)
-                },
-                onDeleteClick = {
-                    onDeleteCourseClick(name)
-                },
-                onRenameClick = { to ->
-                    onRenameClick(name, to)
-                },
-                onChangeIconClick = {
-                    onChangeIconClick(name)
-                }
+                onClick = { onCourseClick(name) },
+                onExportClick = { onExportCourseClick(name) },
+                onDeleteClick = { onDeleteCourseClick(name) },
+                onRenameClick = { to -> onRenameClick(name, to) },
+                modelLoaded = modelLoaded(name),
+                onChangeIconClick = { onChangeIconClick(name) }
             )
         }
-    }
-}
-
-@Composable
-private fun CoursesListItemContainer(
-    onDeleteClick: () -> Unit,
-    content: @Composable () -> Unit
-) {
-    SwipeToRevealBox(
-        hiddenContentEnd = {
-            Row {
-                Text(text = "Delete")
-
-                Spacer(modifier = Modifier.size(5.dp))
-
-                Icon(
-                    imageVector = Icons.Filled.Delete,
-                    contentDescription = "Delete"
-                )
-            }
-        },
-        onHiddenContentEndClick = onDeleteClick
-    ) {
-        content()
     }
 }
 
@@ -449,19 +417,13 @@ private fun CoursesListItem(
     onExportClick: () -> Unit,
     onDeleteClick: () -> Unit,
     onRenameClick: (String) -> Unit,
+    modelLoaded: Boolean,
     onChangeIconClick: () -> Unit
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
-    var showDeleteDialog by remember { mutableStateOf(false) }
-    var showRenameDialog by remember { mutableStateOf(false) }
 
-    if (showDeleteDialog) {
-        ConfirmDeleteDialog(
-            course = name,
-            onDismissRequest = { showDeleteDialog = false },
-            onConfirmation = onDeleteClick
-        )
-    }
+    var showRenameDialog by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
 
     if (showRenameDialog) {
         RenameDialog(
@@ -471,12 +433,28 @@ private fun CoursesListItem(
         )
     }
 
-    CoursesListItemContainer(onDeleteClick = { showDeleteDialog = true }) {
+    if (showDeleteDialog) {
+        ConfirmDeleteDialog(
+            course = name,
+            onDismissRequest = { showDeleteDialog = false },
+            onConfirmation = onDeleteClick
+        )
+    }
+
+    RenameDeleteBox(
+        onRenameClick = { showRenameDialog = true },
+        onDeleteClick = { showDeleteDialog = true }
+    ) {
         ListItem(
             headlineContent = {
                 Text(
                     text = name,
                     fontSize = 16.sp,
+                    fontStyle = if (modelLoaded) {
+                        FontStyle.Italic
+                    } else {
+                        FontStyle.Normal
+                    },
                     fontWeight = FontWeight.Bold,
                 )
             },
@@ -540,16 +518,6 @@ private fun CoursesListItem(
                         onClick = {
                             menuExpanded = false
                             onExportClick()
-                        }
-                    )
-
-                    DropdownMenuItem(
-                        text = {
-                            Text(text = "Rename")
-                        },
-                        onClick = {
-                            menuExpanded = false
-                            showRenameDialog = true
                         }
                     )
 

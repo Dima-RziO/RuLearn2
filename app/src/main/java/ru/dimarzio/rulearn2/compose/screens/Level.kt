@@ -65,8 +65,8 @@ fun Level(
     player: MediaPlayer,
     tts: TextToSpeech,
     locale: Locale,
-    onWordRemoved: (Int) -> Unit,
-    onWordUpdated: (Int, Word) -> Unit,
+    onWordRemoved: (Int, Word) -> Unit,
+    onWordUpdated: (Int, old: Word, new: Word) -> Unit,
     onWordClick: (Int, String) -> Unit
 ) {
     val listState = rememberLazyListState()
@@ -237,17 +237,17 @@ private fun WordsList(
     player: MediaPlayer,
     tts: TextToSpeech,
     locale: Locale,
-    onWordRemoved: (Int) -> Unit,
-    onWordUpdated: (Int, Word) -> Unit,
+    onWordRemoved: (Int, Word) -> Unit,
+    onWordUpdated: (Int, Word, Word) -> Unit,
     onWordClick: (Int, String) -> Unit,
 ) {
     LazyColumn(state = state) {
         items(words.toList()) { (id, word) ->
             WordsListItem(
                 word = word,
-                onDeleteClick = { onWordRemoved(id) },
-                onDifficultClick = { onWordUpdated(id, word.copy(difficult = it)) },
-                onSkipClick = { onWordUpdated(id, word.copy(skip = it)) },
+                onDeleteClick = { onWordRemoved(id, word) },
+                onDifficultClick = { onWordUpdated(id, word, word.copy(difficult = it)) },
+                onSkipClick = { onWordUpdated(id, word, word.copy(skip = it)) },
                 player = player,
                 tts = tts,
                 locale = locale,

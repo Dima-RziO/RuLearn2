@@ -3,8 +3,6 @@ package ru.dimarzio.rulearn2.utils
 import org.apache.commons.lang3.StringUtils
 import java.text.Normalizer
 
-val String.extension get() = substringAfterLast('.')
-
 infix fun Int.percentageFrom(number: Int) = if (this == 0) {
     0f
 } else {

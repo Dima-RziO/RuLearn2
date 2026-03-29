@@ -46,8 +46,8 @@ fun SessionContainer(
     player: MediaPlayer,
     tts: TextToSpeech,
     locale: Locale,
-    onWordRemoved: (Int) -> Unit,
-    onWordUpdated: (Int, Word) -> Unit,
+    onWordRemoved: (Int, Word) -> Unit,
+    onWordUpdated: (Int, Word, Word) -> Unit,
     onWordClick: (Int) -> Unit,
     content: @Composable (PaddingValues) -> Unit
 ) {
@@ -76,11 +76,11 @@ fun SessionContainer(
                                 player = player,
                                 tts = tts,
                                 locale = locale,
-                                onDeleteClick = { onWordRemoved(id) },
+                                onDeleteClick = { onWordRemoved(id, word) },
                                 onDifficultClick = {
-                                    onWordUpdated(id, word.copy(difficult = it))
+                                    onWordUpdated(id, word, word.copy(difficult = it))
                                 },
-                                onSkipClick = { onWordUpdated(id, word.copy(skip = it)) },
+                                onSkipClick = { onWordUpdated(id, word, word.copy(skip = it)) },
                                 onClick = { onWordClick(id) }
                             )
                         }

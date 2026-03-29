@@ -1,17 +1,20 @@
 package ru.dimarzio.rulearn2.models
 
-import ru.dimarzio.rulearn2.utils.LocalTime
-import ru.dimarzio.rulearn2.utils.months
+import ru.dimarzio.rulearn2.tflite.Features
 import ru.dimarzio.rulearn2.utils.normalized
-import ru.dimarzio.rulearn2.viewmodels.PreferencesViewModel
+import ru.dimarzio.rulearn2.viewmodels.PreferencesViewModel.Session
 import java.io.File
+import java.time.Instant
+import java.time.LocalTime
+import java.time.ZoneId
+import kotlin.math.abs
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
-data class Word( // Prototype
+data class Word( // Kotlin Prototype
     // Map<K, V> value
     val name: String,
     val translation: String,
@@ -24,18 +27,22 @@ data class Word( // Prototype
     val repetitions: Int, // n_repeat
     val correctAnswers: Int, // sum_correct
     val secondsLapsed: Long, // s_lapsed
-    val typeRepeat: PreferencesViewModel.Session?,
-    val hintsUsed: Int // n_hint
+    val typeRepeat: Session?,
+    val hintsUsed: Int, // n_hint
+    val successRate: Float
 ) {
+    private val Double.months get() = times(30).days
+
     private val repeatInterval
         get() = if (!skip) {
+            val rate = successRate.toDouble()
             when (rating) {
-                10 -> (1 * ratio).hours
-                11 -> (5 * ratio).hours
-                12 -> (1 * ratio).days
-                13 -> (5 * ratio).days
-                14 -> (25 * ratio).days
-                MAX_RATING -> (4 * ratio).months
+                10 -> (1 * rate).hours
+                11 -> (5 * rate).hours
+                12 -> (1 * rate).days
+                13 -> (5 * rate).days
+                14 -> (25 * rate).days
+                MAX_RATING -> (4 * rate).months
                 else -> Duration.INFINITE
             }
         } else {
@@ -43,12 +50,6 @@ data class Word( // Prototype
         }
 
     val normalizedName = name.normalized()
-    val normalizedTranslation = translation.normalized()
-
-    val randomAudio get() = audios?.filter { it.canRead() && it.isFile }?.randomOrNull()
-
-    val accessedMinutes = LocalTime(accessed).minute
-    val accessedHours = LocalTime(accessed).hour
 
     val lastlyRepeated
         get() = if (accessed != 0L) {
@@ -64,12 +65,10 @@ data class Word( // Prototype
             Duration.INFINITE
         }
 
-    val timeLapsed = secondsLapsed.seconds
 
     val isRepeat get() = repeatDuration == Duration.ZERO
     val isDifficult = difficult && rating >= 10 && !skip
-
-    val learned = rating >= 10
+    val learned = rating >= 10 && !skip
 
     // NaN or POSITIVE_INFINITY cannot be returned
     val ratio = if (repetitions != 0 && correctAnswers != 0) {
@@ -96,6 +95,35 @@ data class Word( // Prototype
         correctAnswers = 0,
         secondsLapsed = 0L,
         typeRepeat = null,
-        hintsUsed = 0
+        hintsUsed = 0,
+        successRate = 1f
+    )
+
+    // ..,
+    constructor(accessed: Long, skip: Boolean, rating: Int, successRate: Float) : this(
+        name = "",
+        translation = "",
+        audios = null,
+        level = "",
+        accessed = accessed,
+        skip = skip,
+        difficult = false,
+        rating = rating,
+        repetitions = 0,
+        correctAnswers = 0,
+        secondsLapsed = 0L,
+        typeRepeat = null,
+        hintsUsed = 0,
+        successRate = successRate
+    )
+
+    fun toFeatures(id: Int) = Features(
+        id = id,
+        repetitions = repetitions,
+        correctAnswers = correctAnswers,
+        rating = rating,
+        secondsLapsed = secondsLapsed,
+        typeRepeat = typeRepeat,
+        hintsUsed = hintsUsed
     )
 }

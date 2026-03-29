@@ -3,6 +3,7 @@ package ru.dimarzio.rulearn2.viewmodels
 import android.content.Context
 import android.net.Uri
 import android.os.Build
+import android.provider.OpenableColumns
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -11,9 +12,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.github.doyaaaaaken.kotlincsv.client.KotlinCsvExperimental
-import com.github.doyaaaaaken.kotlincsv.dsl.csvReader
-import com.github.doyaaaaaken.kotlincsv.dsl.csvWriter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -21,35 +19,30 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import ru.dimarzio.rulearn2.application.Database
 import ru.dimarzio.rulearn2.models.Course
+import ru.dimarzio.rulearn2.models.Word
 import ru.dimarzio.rulearn2.utils.ImageFile
-import ru.dimarzio.rulearn2.utils.deleteDirectory
-import ru.dimarzio.rulearn2.utils.extension
-import ru.dimarzio.rulearn2.utils.getName
-import ru.dimarzio.rulearn2.utils.percentageFrom
-import ru.dimarzio.rulearn2.utils.read
 import ru.dimarzio.rulearn2.utils.toMutableStateMap
-import ru.dimarzio.rulearn2.utils.zipDirectory
+import ru.dimarzio.rulearn2.viewmodels.io.export.ExportComponent
+import ru.dimarzio.rulearn2.viewmodels.io.export.ExportFactory
+import ru.dimarzio.rulearn2.viewmodels.io.import.CSV
+import ru.dimarzio.rulearn2.viewmodels.io.import.ImportComponent
+import ru.dimarzio.rulearn2.viewmodels.io.import.ImportFactory
 import vladis.luv.wificopy.transport.FileInfo
 import vladis.luv.wificopy.transport.Host
 import vladis.luv.wificopy.transport.Peer
 import vladis.luv.wificopy.transport.Prefs
-import java.io.ByteArrayInputStream
 import java.io.File
-import java.io.InputStream
-import java.util.zip.ZipEntry
-import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
-import kotlin.coroutines.CoroutineContext
 
-abstract class CoursesViewModel(
+class CoursesViewModel(
     private val database: Database,
+    private val handler: ErrorHandler,
     inDir: File,
     outDir: File,
     lifecycle: Lifecycle
-) : ViewModel(),
-        (Throwable) -> Unit {
+) : ViewModel(), Observer {
     private val courses = runCatching { database.courses }
-        .onFailure(::invoke)
+        .onFailure(handler::onErrorHandled)
         .getOrDefault(emptyMap())
         .toMutableStateMap()
 
@@ -61,6 +54,8 @@ abstract class CoursesViewModel(
         MutableStateFlow(emptyList<String>()) // MutableStateList does not support multithread operations.
 
     private val peer: Peer
+
+    private val importedCourses = mutableSetOf<String>()
 
     val sortedCourses by derivedStateOf {
         courses.entries
@@ -94,7 +89,7 @@ abstract class CoursesViewModel(
                 if (e == Lifecycle.Event.ON_RESUME) {
                     courses.forEach { (name, course) ->
                         runCatching { database.getRepeatWords(name) }
-                            .onFailure(::invoke)
+                            .onFailure(handler::onErrorHandled)
                             .onSuccess { count ->
                                 if (count > course.repeat) {
                                     courses[name] = course.copy(repeat = count)
@@ -106,214 +101,70 @@ abstract class CoursesViewModel(
         )
     }
 
-    private suspend fun <R> context(
-        context: CoroutineContext = Dispatchers.Default,
-        block: () -> R
-    ) = withContext(context) { runCatching<R> { block.invoke() } }
-
-    private fun importCsv(`is`: InputStream, tableName: String) {
-        database.deleteCourse(tableName)
-        database.createCourse(tableName)
-
-        database.importLines(tableName, csvReader { skipEmptyLine = true }.readAll(`is`))
-    }
-
-    private fun importZip(
-        `is`: InputStream,
-        folder: File,
-        onProgressUpdate: (Float) -> Unit,
-    ) {
-        ZipInputStream(`is`).use { zis ->
-            val initial = `is`.available()
-            zis.read { zipEntry ->
-                when (zipEntry.name.extension) {
-                    "csv" -> {
-                        // Clone `is` to avoid closing it
-                        ByteArrayInputStream(zis.readBytes()).use { bis ->
-                            importCsv(bis, File(zipEntry.name).name.removeSuffix(".csv"))
-                        }
-                    }
-
-                    "db" -> {
-                        File(database.database.path).outputStream().use { os -> zis.copyTo(os) }
-                    }
-
-                    "png", "jpg", "mp3" -> {
-                        val file = File(folder, zipEntry.name)
-
-                        file.parentFile?.mkdirs()
-                        file.createNewFile()
-
-                        file.outputStream().use { os -> zis.copyTo(os) }
-                    }
-                }
-
-                // zis.available() returns something different from length.
-                onProgressUpdate(initial - `is`.available() percentageFrom initial)
-            }
+    private fun Uri.getName(context: Context): String? {
+        return context.contentResolver.query(this, null, null, null, null)?.use { cursor ->
+            cursor.moveToFirst()
+            cursor.getString(cursor.getColumnIndexOrThrow(OpenableColumns.DISPLAY_NAME))
         }
     }
 
-    private fun importCourse(
-        context: Context,
-        uri: Uri,
-        folder: File,
-        onProgressUpdate: (Float) -> Unit
-    ) {
-        val name = checkNotNull(uri.getName(context)) { "Could not determine uri's name" }
+    private val String.extension get() = substringAfterLast('.')
 
-        context.contentResolver.openInputStream(uri)?.use { `is` ->
-            when (name.extension) {
-                "db" -> File(database.database.path).outputStream().use { os -> `is`.copyTo(os) }
-                "csv" -> importCsv(`is`, name.removeSuffix(".csv"))
-                "zip" -> importZip(`is`, folder, onProgressUpdate)
-            }
-        }
-    }
-
-    private fun deleteCourse(
-        name: String,
-        folder: File,
-        onProgressUpdate: (Float) -> Unit
-    ) {
-        val toDelete = listOf(
-            File(File(folder, "audio"), "$name/"),
-            File(File(folder, "pictures"), "$name/"),
-            ImageFile("$folder/icons/$name")
-        )
-
-        toDelete.forEach { dir -> dir?.deleteDirectory(onProgressUpdate) }
-
-        database.deleteCourse(name)
-    }
-
-    @OptIn(KotlinCsvExperimental::class)
-    private fun exportCourse(
-        context: Context,
-        target: Uri,
-        folder: File,
-        course: String?,
-        onProgressUpdate: (Float) -> Unit
-    ) {
-        ZipOutputStream(context.contentResolver.openOutputStream(target)).use { zos ->
-            val toExport = if (course != null) {
-                listOf(
-                    File(File(folder, "audio"), course),
-                    File(File(folder, "pictures"), course),
-                    ImageFile("$folder/icons/$course")
-                )
-            } else {
-                listOf(
-                    File(folder, "audio"),
-                    File(folder, "pictures"),
-                    File(folder, "icons")
-                )
-            }
-
-            toExport.forEach { dirToZip ->
-                if (dirToZip?.canRead() == true) {
-                    zos.zipDirectory(
-                        toZip = dirToZip,
-                        getEntryName = { file ->
-                            file.path.removePrefix("$folder/")
-                        },
-                        onProgressUpdate = onProgressUpdate
-                    )
-                }
-            }
-
-            val tables = if (course != null) {
-                listOf(course, course + "_stat", course + "_ml")
-            } else {
-                courses.keys + courses.keys.map { it + "_stat" } + courses.keys.map { it + "_ml" }
-            }
-
-            tables.forEach { table ->
-                zos.putNextEntry(ZipEntry("$table.csv"))
-                // Use raw writer to avoid closing zos
-                csvWriter().openAndGetRawWriter(zos).writeRows(database.exportTable(table))
-            }
-        }
-    }
-
-    private fun exportDatabase(
-        context: Context,
-        target: Uri,
-        folder: File,
-        onProgressUpdate: (Float) -> Unit
-    ) {
-        ZipOutputStream(context.contentResolver.openOutputStream(target)).use { zos ->
-            val toExport = listOf(
-                File(folder, "audio"),
-                File(folder, "pictures"),
-                File(folder, "icons")
-            )
-
-            toExport.forEach { dirToZip ->
-                if (dirToZip.canRead()) {
-                    zos.zipDirectory(
-                        toZip = dirToZip,
-                        getEntryName = { file ->
-                            file.path.removePrefix("$folder/")
-                        },
-                        onProgressUpdate = onProgressUpdate
-                    )
-                }
-            }
-
-            zos.putNextEntry(ZipEntry(Database.DB_NAME))
-            File(database.database.path).inputStream().use { `is` -> `is`.copyTo(zos) }
-        }
-    }
-
-    fun importCourse(context: Context, uri: Uri, folder: File) {
+    fun import(context: Context, uri: Uri, folder: File) {
         viewModelScope.launch(Dispatchers.Main) {
             _importProgress.value = 0f
 
-            val result = context {
-                importCourse(context, uri, folder) { progress ->
-                    _importProgress.value = progress
+            val result = withContext(Dispatchers.IO) {
+                runCatching {
+                    val name =
+                        checkNotNull(uri.getName(context)) { "Could not determine uri's name" }
+
+                    val factory = ImportFactory(database, folder)
+                    val component = factory.create(name)
+
+                    component.attach(this@CoursesViewModel)
+
+                    context.contentResolver.openInputStream(uri)?.use { `is` ->
+                        component.import(`is`)
+                    }
                 }
             }
 
             _importProgress.value = null
 
-            courses.clear()
-            runCatching { courses += database.courses }.onFailure(::invoke)
+            importedCourses.forEach { course ->
+                val result = runCatching { courses[course] = database.getCourse(course) }
+                result.onFailure(handler::onErrorHandled)
+            }
 
-            result.onFailure(::invoke)
+            importedCourses.clear()
+
+            result
+                .onFailure(handler::onErrorHandled)
+                .onSuccess { handler.onMessageReceived("Success.") }
         }
     }
 
-    fun exportCourse(context: Context, target: Uri, folder: File, course: String?) {
+    fun export(context: Context, uri: Uri, folder: File, factory: ExportFactory) {
         viewModelScope.launch {
             _exportProgress.value = 0f
 
-            val result = context {
-                exportCourse(context, target, folder, course) { progress ->
-                    _exportProgress.value = progress
+            val result = withContext(Dispatchers.IO) {
+                val component = factory.make("root", folder, database)
+                component.attach(this@CoursesViewModel)
+
+                runCatching {
+                    ZipOutputStream(context.contentResolver.openOutputStream(uri)).use { zos ->
+                        component.export(zos)
+                    }
                 }
             }
 
             _exportProgress.value = null
 
-            result.onFailure(::invoke)
-        }
-    }
-
-    fun exportDatabase(context: Context, target: Uri, folder: File) {
-        viewModelScope.launch {
-            _exportProgress.value = 0f
-
-            val result = context {
-                exportDatabase(context, target, folder) { progress ->
-                    _exportProgress.value = progress
-                }
-            }
-
-            _exportProgress.value = null
-
-            result.onFailure(::invoke)
+            result
+                .onFailure(handler::onErrorHandled)
+                .onSuccess { handler.onMessageReceived("Success.") }
         }
     }
 
@@ -321,24 +172,32 @@ abstract class CoursesViewModel(
         viewModelScope.launch {
             isReplicating = true
 
-            val result = context(Dispatchers.Default) {
-                hosts.forEach { host ->
-                    val file = FileInfo("rulearn.db", 0, 0)
-                    val stem = host.ip.hostAddress ?: host.hostname
-                    val dest = File(Prefs.inboxFolder, "$stem.db")
+            val replicated = mutableSetOf<String>()
+            val result = withContext(Dispatchers.Default) {
+                runCatching {
+                    hosts.forEach { host ->
+                        val file = FileInfo("rulearn.db", 0, 0)
+                        val stem = host.ip.hostAddress ?: host.hostname
+                        val dest = File(Prefs.inboxFolder, "$stem.db")
 
-                    peer.getSelectedFileFromServer(host, file, dest)
+                        peer.getSelectedFileFromServer(host, file, dest)
 
-                    database.replicate(dest)
+                        database.replicate(dest)
+
+                        replicated.addAll(replicated)
+                    }
                 }
             }
 
             isReplicating = false
 
-            courses.clear()
-            runCatching { courses += database.courses }.onFailure(::invoke)
+            replicated.forEach { course ->
+                courses[course] = database.getCourse(course)
+            }
 
-            result.onFailure(::invoke)
+            result
+                .onFailure(handler::onErrorHandled)
+                .onSuccess { handler.onMessageReceived("Success.") }
         }
     }
 
@@ -346,15 +205,27 @@ abstract class CoursesViewModel(
         viewModelScope.launch {
             _deleteProgress.value = 0f
 
-            val result = context {
-                deleteCourse(name, folder) { progress ->
-                    _deleteProgress.value = progress
+            val result = withContext(Dispatchers.Default) {
+                runCatching {
+                    val audio = File(folder, "audio")
+                    val pictures = File(folder, "pictures")
+                    val tflite = File(folder, "tflite")
+
+                    File(audio, "$name/").deleteRecursively()
+                    File(pictures, "$name/").deleteRecursively()
+                    File(tflite, "$name.tflite").delete()
+                    ImageFile("$folder/icons/$name")?.delete()
+
+                    database.deleteCourse(name)
                 }
             }
 
+            courses.remove(name)
             _deleteProgress.value = null
 
-            result.onSuccess { courses -= name }.onFailure(::invoke)
+            result
+                .onFailure(handler::onErrorHandled)
+                .onSuccess { handler.onMessageReceived("Success.") }
         }
     }
 
@@ -378,39 +249,120 @@ abstract class CoursesViewModel(
             }
         }
 
-        result.onFailure(::invoke)
+        result.onFailure(handler::onErrorHandled)
     }
 
     fun changeIcon(context: Context, uri: Uri, folder: File, name: String) {
         val result = runCatching {
-            context.contentResolver.openInputStream(uri)?.use { `is` ->
-                val extension = uri.getName(context)?.extension
-                val icon =
-                    ImageFile("$folder/icons/$name") ?: File(folder, "icons/$name.$extension")
+            viewModelScope.launch(Dispatchers.IO) {
+                context.contentResolver.openInputStream(uri)?.use { `is` ->
+                    val extension = uri.getName(context)?.extension
 
-                icon.parentFile?.mkdirs()
-                icon.createNewFile()
-                icon.outputStream().use { os -> `is`.copyTo(os) }
+                    ImageFile("$folder/icons/$name")?.delete() // Delete previous icon
+                    val icon = File(folder, "icons/$name.$extension")
 
-                courses.forEach { (key, course) ->
-                    if (key == name) {
-                        courses[key] = course.copy(icon = icon)
+                    icon.parentFile?.mkdirs()
+                    icon.createNewFile()
+                    icon.outputStream().use { os -> `is`.copyTo(os) }
+
+                    courses.forEach { (key, course) ->
+                        if (key == name) {
+                            courses[key] = course.copy(icon = icon)
+                        }
                     }
                 }
             }
         }
 
-        result.onFailure(::invoke)
+        result.onFailure(handler::onErrorHandled)
     }
 
     fun updateCourse(name: String) {
-        runCatching { courses[name] = database.getCourse(name) }.onFailure(::invoke)
+        courses[name] = database.getCourse(name)
+    }
+
+    fun updateCourse(name: String, old: Word?, new: Word) {
+        val course = courses.getValue(name)
+
+        courses[name] = if (old != null) {
+            course.copy(
+                total = if (old.skip && !new.skip) {
+                    course.total + 1
+                } else if (!old.skip && new.skip) {
+                    course.total - 1
+                } else {
+                    course.total
+                },
+                repeat = if (old.isRepeat && !new.isRepeat) {
+                    course.repeat - 1
+                } else if (!old.isRepeat && new.isRepeat) {
+                    course.repeat + 1
+                } else {
+                    course.repeat
+                },
+                learned = if (old.learned && !new.learned) {
+                    course.learned - 1
+                } else if (!old.learned && new.learned) {
+                    course.learned + 1
+                } else {
+                    course.learned
+                }
+            )
+        } else {
+            course.copy(
+                total = if (!new.skip) course.total + 1 else course.total,
+                repeat = if (new.isRepeat) course.repeat + 1 else course.repeat,
+                learned = if (new.learned) course.learned + 1 else course.learned
+            )
+        }
+    }
+
+    fun updateCourse(name: String, toRemove: Word) { // Remove word
+        val course = courses.getValue(name)
+
+        courses[name] = course.copy(
+            total = if (!toRemove.skip) course.total - 1 else course.total,
+            repeat = if (toRemove.isRepeat) course.repeat - 1 else course.repeat,
+            learned = if (toRemove.learned) course.learned - 1 else course.learned
+        )
     }
 
     fun runSQLiteQuery(query: String) {
-        runCatching { database.database.execSQL(query) }.onFailure(::invoke).onSuccess {
+        val result = runCatching {
+            database.rawQuery(query)
+
             courses.clear()
-            runCatching { courses += database.courses }.onFailure(::invoke)
+            courses.putAll(database.courses)
+        }
+
+        result
+            .onFailure(handler::onErrorHandled)
+            .onSuccess { handler.onMessageReceived("Success.") }
+    }
+
+    override fun update(subject: Subject) {
+        when (subject) {
+            is CSV -> { // CSV imported.
+                val tableName = subject.name.removeSuffix(".csv")
+                if (!tableName.endsWith("_ml")) {
+                    val course = tableName.removeSuffix("_stat")
+                    importedCourses.add(course)
+                }
+            }
+
+            is ImportComponent -> {
+                val progress = subject.getProgress() * 100
+                if (progress != _importProgress.value) {
+                    _importProgress.value = progress
+                }
+            }
+
+            is ExportComponent -> {
+                val progress = subject.getProgress() * 100
+                if (progress != _exportProgress.value) {
+                    _exportProgress.value = progress
+                }
+            }
         }
     }
 }

@@ -44,12 +44,12 @@ import ru.dimarzio.rulearn2.compose.screens.Courses
 import ru.dimarzio.rulearn2.compose.screens.Level
 import ru.dimarzio.rulearn2.compose.screens.Settings
 import ru.dimarzio.rulearn2.compose.screens.Word
-import ru.dimarzio.rulearn2.compose.screens.sessions.guessing.GuessingReview
-import ru.dimarzio.rulearn2.compose.screens.sessions.joint.DifficultWords
-import ru.dimarzio.rulearn2.compose.screens.sessions.joint.LearnNewWords
-import ru.dimarzio.rulearn2.compose.screens.sessions.typing.TypingReview
-import ru.dimarzio.rulearn2.models.Word
+import ru.dimarzio.rulearn2.compose.screens.sessions.GuessingReview
+import ru.dimarzio.rulearn2.compose.screens.sessions.DifficultWords
+import ru.dimarzio.rulearn2.compose.screens.sessions.LearnNewWords
+import ru.dimarzio.rulearn2.compose.screens.sessions.TypingReview
 import ru.dimarzio.rulearn2.routes.MainRoutes
+import ru.dimarzio.rulearn2.tflite.ModelFactory
 import ru.dimarzio.rulearn2.ui.theme.RuLearn2Theme
 import ru.dimarzio.rulearn2.utils.navigate
 import ru.dimarzio.rulearn2.utils.notifyPermissionGranted
@@ -58,14 +58,46 @@ import ru.dimarzio.rulearn2.utils.storagePermissionGranted
 import ru.dimarzio.rulearn2.utils.toast
 import ru.dimarzio.rulearn2.viewmodels.CourseViewModel
 import ru.dimarzio.rulearn2.viewmodels.CoursesViewModel
-import ru.dimarzio.rulearn2.viewmodels.DifficultWordsViewModel
-import ru.dimarzio.rulearn2.viewmodels.LearnWordsViewModel
+import ru.dimarzio.rulearn2.viewmodels.ErrorHandler
 import ru.dimarzio.rulearn2.viewmodels.LevelViewModel
 import ru.dimarzio.rulearn2.viewmodels.PreferencesViewModel
-import ru.dimarzio.rulearn2.viewmodels.ReviewViewModel
 import ru.dimarzio.rulearn2.viewmodels.WordViewModel
+import ru.dimarzio.rulearn2.viewmodels.io.export.CourseFactory
+import ru.dimarzio.rulearn2.viewmodels.io.export.CoursesFactory
+import ru.dimarzio.rulearn2.viewmodels.io.export.DatabaseFactory
+import ru.dimarzio.rulearn2.viewmodels.sessions.DifficultWordsViewModel
+import ru.dimarzio.rulearn2.viewmodels.sessions.GuessingReviewViewModel
+import ru.dimarzio.rulearn2.viewmodels.sessions.LearnWordsViewModel
+import ru.dimarzio.rulearn2.viewmodels.sessions.ReviewViewModel
+import ru.dimarzio.rulearn2.viewmodels.sessions.WordAdapter
+import ru.dimarzio.rulearn2.viewmodels.sessions.difficult.DifficultWord
+import ru.dimarzio.rulearn2.viewmodels.sessions.difficult.DifficultWordAdapter
 
-// Yeah, this class is kinda big..
+/*
+    * GoF Builder
+    * GoF Factory Method
+    * GoF Prototype
+    * GoF Adapter
+    * GoF Bridge
+    * GoF Composite
+    * GoF Decorator
+    * GoF Facade
+    * GoF Flyweight
+    * GoF Chain of Responsibility
+    * GoF Iterator
+    * GoF Observer
+    * GoF State
+    * GoF Strategy
+    * GoF Template Method
+    *
+    * Kotlin Prototype
+    * Kotlin Singleton
+    * Kotlin Flows
+    *
+    * Compose States
+    * MVVM
+ */
+
 class MainActivity : ComponentActivity() {
     private val player = MediaPlayer()
     private val tts by lazy {
@@ -116,6 +148,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+
         player.release()
         tts.shutdown()
     }
@@ -124,39 +157,22 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun CoursesRoute(
     prefsViewModel: PreferencesViewModel,
-    navController: NavController
+    navController: NavController,
+    handler: ErrorHandler
 ) {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
 
-    var error by remember { mutableStateOf(null as String?) }
-
-    if (error != null) {
-        ErrorDialog(
-            onDismissRequest = { error = null },
-            message = error!!
-        )
-    }
-
     val coursesViewModel = viewModel<CoursesViewModel>(
         factory = viewModelFactory {
             addInitializer(CoursesViewModel::class) {
-                object : CoursesViewModel(
+                CoursesViewModel(
                     prefsViewModel.database,
+                    handler,
                     prefsViewModel.inDir,
                     prefsViewModel.outDir,
                     lifecycle
-                ) {
-                    override fun invoke(exception: Throwable) {
-                        if (exception.localizedMessage != null) {
-                            error = exception.localizedMessage
-                            context.toast(exception.localizedMessage!!)
-                        } else {
-                            context.toast("Error")
-                        }
-                        // context.toast(exception.localizedMessage ?: "Error", Toast.LENGTH_LONG)
-                    }
-                }
+                )
             }
 
             build()
@@ -169,21 +185,30 @@ fun CoursesRoute(
     val importLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
-        uri?.let { coursesViewModel.importCourse(context, uri, prefsViewModel.appFolder) }
+        uri?.let { coursesViewModel.import(context, uri, prefsViewModel.appFolder) }
     }
 
     val exportCourseLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/zip")
     ) { uri ->
         uri?.let {
-            coursesViewModel.exportCourse(context, uri, prefsViewModel.appFolder, exportCourse)
+            val factory = if (exportCourse != null) {
+                CourseFactory(exportCourse!!)
+            } else {
+                CoursesFactory(coursesViewModel.sortedCourses.keys)
+            }
+
+            coursesViewModel.export(context, uri, prefsViewModel.appFolder, factory)
         }
     }
 
     val exportDatabaseLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/zip")
     ) { uri ->
-        uri?.let { coursesViewModel.exportDatabase(context, uri, prefsViewModel.appFolder) }
+        uri?.let {
+            val factory = DatabaseFactory()
+            coursesViewModel.export(context, uri, prefsViewModel.appFolder, factory)
+        }
     }
 
     val iconLauncher = rememberLauncherForActivityResult(
@@ -230,6 +255,7 @@ fun CoursesRoute(
         onRenameClick = { from, to ->
             coursesViewModel.renameCourse(from, to, prefsViewModel.appFolder)
         },
+        modelLoaded = ModelFactory::isLoaded,
         onChangeIconClick = { course ->
             iconLauncher.launch("image/*")
             iconCourse = course
@@ -248,32 +274,20 @@ fun CourseRoute(
     course: String,
     lifecycle: Lifecycle,
     prefsViewModel: PreferencesViewModel,
-    navController: NavController
+    navController: NavController,
+    handler: ErrorHandler
 ) {
-    val context = LocalContext.current
-
-    var error by remember { mutableStateOf(null as String?) }
-
-    if (error != null) {
-        ErrorDialog(
-            onDismissRequest = { error = null },
-            message = error!!
-        )
-    }
-
     val coursesViewModel = navController.coursesViewModel()
     val courseViewModel = viewModel<CourseViewModel>(
         factory = viewModelFactory {
             addInitializer(CourseViewModel::class) {
-                object : CourseViewModel(prefsViewModel.database, course, lifecycle) {
-                    override fun invoke(exception: Throwable) {
-                        if (exception.localizedMessage != null) {
-                            error = exception.localizedMessage
-                        } else {
-                            context.toast("Error")
-                        }
-                    }
-                }
+                CourseViewModel(
+                    prefsViewModel.database,
+                    handler,
+                    course,
+                    prefsViewModel.appFolder,
+                    lifecycle
+                )
             }
         }
     )
@@ -290,6 +304,9 @@ fun CourseRoute(
         onAddActionClick = { level ->
             navController.navigate(MainRoutes.Level.route, "level" to level)
         },
+        model = courseViewModel.model?.getName(),
+        loss = courseViewModel.loss,
+        onTrainActionClick = { }, // TODO
         filterRepeat = courseViewModel.filterRepeat,
         filterNotRepeat = courseViewModel.filterNotRepeat,
         filterDifficult = courseViewModel.filterDifficult,
@@ -323,7 +340,7 @@ fun CourseRoute(
             prefsViewModel.updateSelectedSession(PreferencesViewModel.Session.GuessingReview)
             navController.navigate(MainRoutes.GuessingReview.route, "level" to null)
         },
-        loading = courseViewModel.showLoadingIndicator.collectAsState().value,
+        loading = courseViewModel.showLoadingIndicator,
         onWordClick = { id, level ->
             navController.navigate(
                 MainRoutes.Word.route, "id" to id, "level" to level
@@ -354,7 +371,7 @@ fun LevelRoute(
     val courseViewModel = navController.courseViewModel()
 
     if (courseViewModel != null) {
-        val courseWords by courseViewModel.words.collectAsState()
+        val courseWords = courseViewModel.words.collectAsState().value
         val levelViewModel = viewModel<LevelViewModel>(
             factory = viewModelFactory {
                 addInitializer(LevelViewModel::class) {
@@ -393,15 +410,15 @@ fun LevelRoute(
             player = player,
             tts = tts,
             locale = courseViewModel.locale,
-            onWordRemoved = { id ->
+            onWordRemoved = { id, word ->
                 levelViewModel.removeWord(id)
                 courseViewModel.removeWord(id)
-                coursesViewModel?.updateCourse(courseViewModel.course)
+                coursesViewModel?.updateCourse(courseViewModel.course, word)
             },
-            onWordUpdated = { id, word ->
-                levelViewModel.updateWord(id, word)
-                courseViewModel.updateWord(id, word)
-                coursesViewModel?.updateCourse(courseViewModel.course)
+            onWordUpdated = { id, old, new ->
+                levelViewModel.updateWord(id, new)
+                courseViewModel.updateWord(id, new)
+                coursesViewModel?.updateCourse(courseViewModel.course, old, new)
             },
             onWordClick = { id, level ->
                 navController.navigate(
@@ -425,22 +442,14 @@ fun WordRoute(
     val levelViewModel = navController.levelViewModel()
 
     if (courseViewModel != null) {
-        val words by courseViewModel.words.collectAsState()
+        val words = courseViewModel.words.collectAsState().value
         val wordViewModel = viewModel<WordViewModel>(
             factory = viewModelFactory {
                 addInitializer(WordViewModel::class) {
-                    WordViewModel(words, id, level)
+                    WordViewModel(courseViewModel.model, words, id, level)
                 }
             }
         )
-
-        val levelsForName by remember(key1 = words, key2 = wordViewModel.newWord) {
-            mutableStateOf(wordViewModel.getLevelsForName(words))
-        }
-
-        val levelsForTranslation by remember(key1 = words, key2 = wordViewModel.newWord) {
-            mutableStateOf(wordViewModel.getLevelsForTranslation(words))
-        }
 
         Word(
             id = wordViewModel.newId,
@@ -450,9 +459,11 @@ fun WordRoute(
             locale = courseViewModel.locale,
             onNavigationIconClick = navController::popBackStack,
             onDeleteActionClick = {
-                levelViewModel?.removeWord(wordViewModel.newId)
-                courseViewModel.removeWord(wordViewModel.newId)
-                coursesViewModel?.updateCourse(courseViewModel.course)
+                if (wordViewModel.oldWord != null) {
+                    levelViewModel?.removeWord(wordViewModel.newId)
+                    courseViewModel.removeWord(wordViewModel.newId)
+                    coursesViewModel?.updateCourse(courseViewModel.course, wordViewModel.oldWord)
+                }
 
                 navController.popBackStack()
             },
@@ -460,15 +471,16 @@ fun WordRoute(
             onAudioClick = player::play,
             onWordUpdated = wordViewModel::updateWord,
             onAccessedClick = wordViewModel::pickAccessed,
-            levelsForName = levelsForName,
-            levelsForTranslation = levelsForTranslation,
+            levelsForName = wordViewModel.levelsForName,
+            levelsForTranslation = wordViewModel.levelsForTranslation,
             otherLevels = courseViewModel.levels.collectAsState().value.keys,
             onWordSaved = {
                 val newWord = wordViewModel.save()
+                val old = wordViewModel.oldWord
 
                 levelViewModel?.updateWord(wordViewModel.newId, newWord)
                 courseViewModel.updateWord(wordViewModel.newId, newWord)
-                coursesViewModel?.updateCourse(courseViewModel.course)
+                coursesViewModel?.updateCourse(courseViewModel.course, old, newWord)
 
                 navController.popBackStack()
             }
@@ -479,11 +491,11 @@ fun WordRoute(
 @Composable
 fun GuessingReviewRoute(
     level: String?,
-    limit: Int,
     prefsViewModel: PreferencesViewModel,
     player: MediaPlayer,
     tts: TextToSpeech,
-    navController: NavController
+    navController: NavController,
+    handler: ErrorHandler
 ) {
     val coursesViewModel = navController.coursesViewModel()
     val courseViewModel = navController.courseViewModel()
@@ -492,72 +504,79 @@ fun GuessingReviewRoute(
     val context = LocalContext.current
 
     if (courseViewModel != null) {
-        val words by courseViewModel.words.collectAsState()
-        val reviewViewModel = viewModel<ReviewViewModel>(
+        val courseWords by  courseViewModel.words.collectAsState()
+        val reviewViewModel = viewModel<GuessingReviewViewModel>(
             factory = viewModelFactory {
-                addInitializer(ReviewViewModel::class) {
-                    ReviewViewModel(words, level, limit)
+                addInitializer(GuessingReviewViewModel::class) {
+                    GuessingReviewViewModel(
+                        model = courseViewModel.model,
+                        markDifficult = prefsViewModel.markDifficult,
+                        courseWords = courseWords,
+                        level = level,
+                        limit = 25
+                    )
                 }
             }
         )
 
-        if (reviewViewModel.currentId != null && reviewViewModel.currentWord != null) {
+        if (reviewViewModel.currentWord != null) {
             BackHandler(enabled = prefsViewModel.backGesture) {
-                reviewViewModel.reselectCurrentWord()
+                reviewViewModel.next()
             }
 
+            val currentId = reviewViewModel.currentWord!!.getId()
+            val currentWord = reviewViewModel.currentWord!!.getWord()
+
             GuessingReview(
-                currentId = reviewViewModel.currentId!!,
-                currentWord = reviewViewModel.currentWord!!,
-                repeatedWords = reviewViewModel.repeatedWords,
+                currentId = currentId,
+                currentWord = currentWord,
+                repeatedWords = reviewViewModel.rote,
                 player = player,
                 tts = tts,
                 locale = courseViewModel.locale,
-                onWordRemoved = { id ->
+                onWordRemoved = { id, word ->
                     reviewViewModel.removeWord(id)
-                    reviewViewModel.reselectCurrentWord()
+                    reviewViewModel.next()
 
                     levelViewModel?.removeWord(id)
                     courseViewModel.removeWord(id)
-                    coursesViewModel?.updateCourse(courseViewModel.course)
+                    coursesViewModel?.updateCourse(courseViewModel.course, word)
                 },
-                onWordUpdated = { id, word ->
-                    reviewViewModel.updateWord(id, word)
-                    reviewViewModel.reselectCurrentWord()
+                onWordUpdated = { id, old, new ->
+                    reviewViewModel.updateWord(WordAdapter(id, new))
+                    reviewViewModel.next()
 
-                    levelViewModel?.updateWord(id, word)
-                    courseViewModel.updateWord(id, word)
-                    coursesViewModel?.updateCourse(courseViewModel.course)
+                    levelViewModel?.updateWord(id, new)
+                    courseViewModel.updateWord(id, new)
+                    coursesViewModel?.updateCourse(courseViewModel.course, old, new)
                 },
-                courseWords = words,
+                handler = handler,
+                courseWords = courseWords,
                 otherLevels = courseViewModel.levels.collectAsState().value.keys,
                 similarWords = prefsViewModel.similarWords,
                 skippedWords = prefsViewModel.skippedWords,
-                correctAnswers = reviewViewModel.correctAnswers,
                 onNavigationIconClick = navController::navigateUp,
                 progress = reviewViewModel.progress,
                 useTts = prefsViewModel.tts,
                 onAnswer = { correct ->
-                    val write = { id: Int, word: Word ->
-                        levelViewModel?.updateWord(id, word)
-                        courseViewModel.updateWord(id, word)
-                        coursesViewModel?.updateCourse(courseViewModel.course)
+                    val new = reviewViewModel.answer(correct, 0)
 
-                        Unit
+                    if (new != null) {
+                        /*
+                        * currentWord and currentId local properties are captured by onAnswer block
+                        * won't have synchronized by the time reviewViewModel.currentWord is updated
+                        * refer to an old reviewViewModel.currentWord value
+                         */
+                        levelViewModel?.updateWord(currentId, new)
+                        courseViewModel.updateWord(currentId, new)
+                        coursesViewModel?.updateCourse(courseViewModel.course, currentWord, new)
                     }
-
-                    reviewViewModel.answer(
-                        correct,
-                        prefsViewModel.markDifficult,
-                        PreferencesViewModel.Session.GuessingReview,
-                        0,
-                        write
-                    )
                 },
-                onRefreshRequested = reviewViewModel::reselectCurrentWord,
+                onRefreshRequested = reviewViewModel::next,
                 ended = reviewViewModel.ended,
                 hidden = reviewViewModel.hidden,
-                hide = reviewViewModel::hide,
+                hide = reviewViewModel::toggleHidden,
+                model = courseViewModel.model,
                 getWord = courseViewModel::getWord,
                 onSettingsActionClick = { navController.navigate(MainRoutes.Settings.route) }
             )
@@ -573,7 +592,6 @@ fun GuessingReviewRoute(
 @Composable
 fun TypingReviewRoute(
     level: String?,
-    limit: Int,
     prefsViewModel: PreferencesViewModel,
     player: MediaPlayer,
     tts: TextToSpeech,
@@ -586,68 +604,71 @@ fun TypingReviewRoute(
     val context = LocalContext.current
 
     if (courseViewModel != null) {
-        val words by courseViewModel.words.collectAsState()
+        val courseWords = courseViewModel.words.collectAsState().value
         val reviewViewModel = viewModel<ReviewViewModel>(
             factory = viewModelFactory {
                 addInitializer(ReviewViewModel::class) {
-                    ReviewViewModel(words, level, limit)
+                    ReviewViewModel(
+                        model = courseViewModel.model,
+                        type = PreferencesViewModel.Session.TypingReview,
+                        markDifficult = prefsViewModel.markDifficult,
+                        courseWords = courseWords,
+                        level = level,
+                        limit = 25
+                    )
                 }
             }
         )
 
-        if (reviewViewModel.currentId != null && reviewViewModel.currentWord != null) {
+        if (reviewViewModel.currentWord != null) {
             BackHandler(enabled = prefsViewModel.backGesture) {
-                reviewViewModel.reselectCurrentWord()
+                reviewViewModel.next()
             }
 
+            val currentId = reviewViewModel.currentWord!!.getId()
+            val currentWord = reviewViewModel.currentWord!!.getWord()
+
             TypingReview(
-                currentId = reviewViewModel.currentId!!,
-                currentWord = reviewViewModel.currentWord!!,
-                repeatedWords = reviewViewModel.repeatedWords,
+                currentId = currentId,
+                currentWord = currentWord,
+                repeatedWords = reviewViewModel.rote,
                 player = player,
                 tts = tts,
                 locale = courseViewModel.locale,
-                onWordRemoved = { id ->
+                model = courseViewModel.model,
+                onWordRemoved = { id, word ->
                     reviewViewModel.removeWord(id)
-                    reviewViewModel.reselectCurrentWord()
+                    reviewViewModel.next()
 
                     levelViewModel?.removeWord(id)
                     courseViewModel.removeWord(id)
-                    coursesViewModel?.updateCourse(courseViewModel.course)
+                    coursesViewModel?.updateCourse(courseViewModel.course, word)
                 },
-                onWordUpdated = { id, word ->
-                    reviewViewModel.updateWord(id, word)
-                    reviewViewModel.reselectCurrentWord()
+                onWordUpdated = { id, old, new ->
+                    reviewViewModel.updateWord(WordAdapter(id, new))
+                    reviewViewModel.next()
 
-                    levelViewModel?.updateWord(id, word)
-                    courseViewModel.updateWord(id, word)
-                    coursesViewModel?.updateCourse(courseViewModel.course)
+                    levelViewModel?.updateWord(id, new)
+                    courseViewModel.updateWord(id, new)
+                    coursesViewModel?.updateCourse(courseViewModel.course, old, new)
                 },
-                correctAnswers = reviewViewModel.correctAnswers,
+                correctAnswers = reviewViewModel.rote.size,
                 onNavigationIconClick = navController::popBackStack,
                 progress = reviewViewModel.progress,
-                courseWords = words,
+                courseWords = courseWords,
                 otherLevels = courseViewModel.levels.collectAsState().value.keys,
                 useTts = prefsViewModel.tts,
                 papasHints = prefsViewModel.papasHints,
                 onAnswer = { correct, hintsUsed ->
-                    val write = { id: Int, word: Word ->
-                        levelViewModel?.updateWord(id, word)
-                        courseViewModel.updateWord(id, word)
-                        coursesViewModel?.updateCourse(courseViewModel.course)
+                    val new = reviewViewModel.answer(correct, hintsUsed)
 
-                        Unit
+                    if (new != null) {
+                        levelViewModel?.updateWord(currentId, new)
+                        courseViewModel.updateWord(currentId, new)
+                        coursesViewModel?.updateCourse(courseViewModel.course, currentWord, new)
                     }
-
-                    reviewViewModel.answer(
-                        correct,
-                        prefsViewModel.markDifficult,
-                        PreferencesViewModel.Session.TypingReview,
-                        hintsUsed,
-                        write
-                    )
                 },
-                onRefreshRequested = reviewViewModel::reselectCurrentWord,
+                onRefreshRequested = reviewViewModel::next,
                 ended = reviewViewModel.ended,
                 onSettingsActionClick = { navController.navigate(MainRoutes.Settings.route) }
             )
@@ -663,11 +684,11 @@ fun TypingReviewRoute(
 @Composable
 fun LearnWordsRoute(
     level: String?,
-    limit: Int,
     prefsViewModel: PreferencesViewModel,
     player: MediaPlayer,
     tts: TextToSpeech,
-    navController: NavController
+    navController: NavController,
+    handler: ErrorHandler
 ) {
     val coursesViewModel = navController.coursesViewModel()
     val courseViewModel = navController.courseViewModel()
@@ -676,46 +697,52 @@ fun LearnWordsRoute(
     val context = LocalContext.current
 
     if (courseViewModel != null) {
-        val words by courseViewModel.words.collectAsState()
+        val courseWords = courseViewModel.words.collectAsState().value
         val learnWordsViewModel = viewModel<LearnWordsViewModel>(
             factory = viewModelFactory {
                 addInitializer(LearnWordsViewModel::class) {
-                    LearnWordsViewModel(words, level, limit)
+                    LearnWordsViewModel(courseWords, level, 5)
                 }
             }
         )
-        if (learnWordsViewModel.currentId != null && learnWordsViewModel.currentWord != null) {
+
+        if (learnWordsViewModel.currentWord != null) {
             BackHandler(
                 enabled = prefsViewModel.backGesture,
-                onBack = learnWordsViewModel::randomizeCurrentWord
+                onBack = learnWordsViewModel::next
             )
 
+            val currentId = learnWordsViewModel.currentWord!!.getId()
+            val currentWord = learnWordsViewModel.currentWord!!.getWord()
+
             LearnNewWords(
-                learnedWords = learnWordsViewModel.learnedWords,
+                learnedWords = learnWordsViewModel.rote,
                 player = player,
                 tts = tts,
                 locale = courseViewModel.locale,
-                onWordRemoved = { id ->
+                handler = handler,
+                onWordRemoved = { id, word ->
                     learnWordsViewModel.removeWord(id)
-                    learnWordsViewModel.randomizeCurrentWord()
+                    learnWordsViewModel.next()
 
                     levelViewModel?.removeWord(id)
                     courseViewModel.removeWord(id)
-                    coursesViewModel?.updateCourse(courseViewModel.course)
+                    coursesViewModel?.updateCourse(courseViewModel.course, word)
                 },
-                onWordUpdated = { id, word ->
-                    learnWordsViewModel.updateWord(id, word)
-                    learnWordsViewModel.randomizeCurrentWord()
+                onWordUpdated = { id, old, new ->
+                    learnWordsViewModel.updateWord(WordAdapter(id, new))
+                    learnWordsViewModel.next()
 
-                    levelViewModel?.updateWord(id, word)
-                    courseViewModel.updateWord(id, word)
-                    coursesViewModel?.updateCourse(courseViewModel.course)
+                    levelViewModel?.updateWord(id, new)
+                    courseViewModel.updateWord(id, new)
+                    coursesViewModel?.updateCourse(courseViewModel.course, old, new)
                 },
-                currentId = learnWordsViewModel.currentId!!,
-                currentWord = learnWordsViewModel.currentWord!!,
+                currentId = currentId,
+                currentWord = currentWord,
+                model = courseViewModel.model,
                 getWord = courseViewModel::getWord,
                 onSettingsActionClick = { navController.navigate(MainRoutes.Settings.route) },
-                courseWords = words,
+                courseWords = courseWords,
                 otherLevels = courseViewModel.levels.collectAsState().value.keys,
                 similarWords = prefsViewModel.similarWords,
                 skippedWords = prefsViewModel.skippedWords,
@@ -724,16 +751,18 @@ fun LearnWordsRoute(
                 useTts = prefsViewModel.tts,
                 papasHints = prefsViewModel.papasHints,
                 onAnswer = { correct, hintsUsed ->
-                    learnWordsViewModel.answer(correct, hintsUsed) { id, word ->
-                        levelViewModel?.updateWord(id, word)
-                        courseViewModel.updateWord(id, word)
-                        coursesViewModel?.updateCourse(courseViewModel.course)
+                    val new = learnWordsViewModel.answer(correct, hintsUsed)
+
+                    if (new != null) {
+                        levelViewModel?.updateWord(currentId, new)
+                        courseViewModel.updateWord(currentId, new)
+                        coursesViewModel?.updateCourse(courseViewModel.course, currentWord, new)
                     }
                 },
-                onRefreshRequested = learnWordsViewModel::randomizeCurrentWord,
+                onRefreshRequested = learnWordsViewModel::next,
                 ended = learnWordsViewModel.ended,
                 hidden = learnWordsViewModel.hidden,
-                hide = learnWordsViewModel::hide
+                hide = learnWordsViewModel::toggleHidden
             )
         } else {
             LaunchedEffect(key1 = Unit) {
@@ -747,11 +776,11 @@ fun LearnWordsRoute(
 @Composable
 fun DifficultWordsRoute(
     level: String?,
-    limit: Int,
     prefsViewModel: PreferencesViewModel,
     player: MediaPlayer,
     tts: TextToSpeech,
-    navController: NavController
+    navController: NavController,
+    handler: ErrorHandler
 ) {
     val coursesViewModel = navController.coursesViewModel()
     val courseViewModel = navController.courseViewModel()
@@ -760,51 +789,60 @@ fun DifficultWordsRoute(
     val context = LocalContext.current
 
     if (courseViewModel != null) {
-        val words by courseViewModel.words.collectAsState()
+        val courseWords = courseViewModel.words.collectAsState().value
         val difficultWordsViewModel = viewModel<DifficultWordsViewModel>(
             factory = viewModelFactory {
                 addInitializer(DifficultWordsViewModel::class) {
-                    DifficultWordsViewModel(words, level, limit)
+                    DifficultWordsViewModel(
+                        model = courseViewModel.model,
+                        courseWords = courseWords,
+                        level = level,
+                        limit = 5
+                    )
                 }
             }
         )
-        if (
-            difficultWordsViewModel.currentId != null
-            && difficultWordsViewModel.currentWord != null
-            && difficultWordsViewModel.currentState != null
-        ) {
-            BackHandler(enabled = prefsViewModel.backGesture) {
-                difficultWordsViewModel.randomizeCurrentWord()
-            }
+
+        if (difficultWordsViewModel.currentWord != null) {
+            BackHandler(
+                enabled = prefsViewModel.backGesture,
+                onBack = difficultWordsViewModel::next
+            )
+
+            val difficultWord = difficultWordsViewModel.currentWord!!.adaptee() as DifficultWord
 
             DifficultWords(
-                memorizedWords = difficultWordsViewModel.memorizedWords,
+                memorizedWords = difficultWordsViewModel.rote,
                 player = player,
                 tts = tts,
                 locale = courseViewModel.locale,
-                onWordRemoved = { id ->
+                model = courseViewModel.model,
+                onWordRemoved = { id, word ->
                     difficultWordsViewModel.removeWord(id)
-                    difficultWordsViewModel.randomizeCurrentWord()
+                    difficultWordsViewModel.next()
 
                     levelViewModel?.removeWord(id)
                     courseViewModel.removeWord(id)
-                    coursesViewModel?.updateCourse(courseViewModel.course)
+                    coursesViewModel?.updateCourse(courseViewModel.course, word)
                 },
-                onWordUpdated = { id, word, state ->
-                    difficultWordsViewModel.updateWord(id, word, state)
-                    difficultWordsViewModel.randomizeCurrentWord()
+                onWordUpdated = { id, old, new, state ->
+                    val adapter = DifficultWordAdapter(DifficultWord(id, new, state))
 
-                    levelViewModel?.updateWord(id, word)
-                    courseViewModel.updateWord(id, word)
-                    coursesViewModel?.updateCourse(courseViewModel.course)
+                    difficultWordsViewModel.updateWord(adapter)
+                    difficultWordsViewModel.next()
+
+                    levelViewModel?.updateWord(id, new)
+                    courseViewModel.updateWord(id, new)
+                    coursesViewModel?.updateCourse(courseViewModel.course, old, new)
                 },
-                currentId = difficultWordsViewModel.currentId!!,
-                currentWord = difficultWordsViewModel.currentWord!!,
-                currentState = difficultWordsViewModel.currentState!!,
+                currentId = difficultWord.id,
+                currentWord = difficultWord.word,
+                currentState = difficultWord.state,
                 getWord = courseViewModel::getWord,
                 onSettingsActionClick = { navController.navigate(MainRoutes.Settings.route) },
-                courseWords = words,
+                courseWords = courseWords,
                 otherLevels = courseViewModel.levels.collectAsState().value.keys,
+                handler = handler,
                 similarWords = prefsViewModel.similarWords,
                 skippedWords = prefsViewModel.skippedWords,
                 onNavigationIconClick = navController::popBackStack,
@@ -812,16 +850,18 @@ fun DifficultWordsRoute(
                 useTts = prefsViewModel.tts,
                 papasHints = prefsViewModel.papasHints,
                 onAnswer = { correct, hintsUsed ->
-                    difficultWordsViewModel.answer(correct, hintsUsed) { id, word ->
-                        levelViewModel?.updateWord(id, word)
-                        courseViewModel.updateWord(id, word)
-                        coursesViewModel?.updateCourse(courseViewModel.course)
+                    val new = difficultWordsViewModel.answer(correct, hintsUsed)
+
+                    if (new != null) {
+                        levelViewModel?.updateWord(difficultWord.id, new)
+                        courseViewModel.updateWord(difficultWord.id, new)
+                        coursesViewModel?.updateCourse(courseViewModel.course, difficultWord.word, new)
                     }
                 },
-                onRefreshRequested = difficultWordsViewModel::randomizeCurrentWord,
+                onRefreshRequested = difficultWordsViewModel::next,
                 ended = difficultWordsViewModel.ended,
                 hidden = difficultWordsViewModel.hidden,
-                hide = difficultWordsViewModel::hide
+                hide = difficultWordsViewModel::toggleHidden
             )
         } else {
             LaunchedEffect(key1 = Unit) {
@@ -954,6 +994,31 @@ fun MainScreen(
 ) {
     val navController = rememberNavController()
     val lifecycle = LocalLifecycleOwner.current.lifecycle // Pass top-level lifecycle.
+    val context = LocalContext.current
+
+    var error by remember { mutableStateOf(null as String?) }
+
+    if (error != null) {
+        ErrorDialog(
+            onDismissRequest = { error = null },
+            message = error!!
+        )
+    }
+
+    val handler = object : ErrorHandler {
+        override fun onErrorHandled(exception: Throwable?) {
+            if (exception?.localizedMessage != null) {
+                error = exception.localizedMessage
+                context.toast(exception.localizedMessage!!)
+            } else {
+                context.toast("Error")
+            }
+        }
+
+        override fun onMessageReceived(message: String) {
+            context.toast(message)
+        }
+    }
 
     NavHost(
         navController = navController,
@@ -962,7 +1027,8 @@ fun MainScreen(
         composable(MainRoutes.Courses.route) {
             CoursesRoute(
                 prefsViewModel = preferencesViewModel,
-                navController = navController
+                navController = navController,
+                handler = handler
             )
         }
 
@@ -973,7 +1039,8 @@ fun MainScreen(
                     course = course,
                     lifecycle = lifecycle,
                     prefsViewModel = preferencesViewModel,
-                    navController = navController
+                    navController = navController,
+                    handler = handler
                 )
             }
         }
@@ -1020,11 +1087,11 @@ fun MainScreen(
         ) { backStackEntry ->
             GuessingReviewRoute(
                 level = backStackEntry.arguments?.getString("level"),
-                limit = 25, // TODO
                 prefsViewModel = preferencesViewModel,
                 player = player,
                 tts = tts,
-                navController = navController
+                navController = navController,
+                handler = handler
             )
         }
 
@@ -1034,11 +1101,10 @@ fun MainScreen(
         ) { backStackEntry ->
             TypingReviewRoute(
                 level = backStackEntry.arguments?.getString("level"),
-                limit = 25, // TODO
                 prefsViewModel = preferencesViewModel,
                 player = player,
                 tts = tts,
-                navController = navController
+                navController = navController,
             )
         }
 
@@ -1048,11 +1114,11 @@ fun MainScreen(
         ) { backStackEntry ->
             LearnWordsRoute(
                 level = backStackEntry.arguments?.getString("level"),
-                limit = 5, // TODO
                 prefsViewModel = preferencesViewModel,
                 player = player,
                 tts = tts,
-                navController = navController
+                navController = navController,
+                handler = handler
             )
         }
 
@@ -1062,11 +1128,11 @@ fun MainScreen(
         ) { backStackEntry ->
             DifficultWordsRoute(
                 level = backStackEntry.arguments?.getString("level"),
-                limit = 15, // TODO
                 prefsViewModel = preferencesViewModel,
                 player = player,
                 tts = tts,
-                navController = navController
+                navController = navController,
+                handler = handler
             )
         }
 

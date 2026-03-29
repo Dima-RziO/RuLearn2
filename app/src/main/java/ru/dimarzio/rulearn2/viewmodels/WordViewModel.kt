@@ -1,39 +1,67 @@
 package ru.dimarzio.rulearn2.viewmodels
 
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import ru.dimarzio.rulearn2.models.Word
-import ru.dimarzio.rulearn2.utils.LocalDateTime
-import ru.dimarzio.rulearn2.utils.maxOfOrDefault
-import ru.dimarzio.rulearn2.utils.millis
+import ru.dimarzio.rulearn2.tflite.TFLiteModel
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.ZoneId
 
 class WordViewModel(
+    private val model: TFLiteModel?,
     courseWords: Map<Int, Word>,
     id: Int?,
     level: String? // Pass null if you are sure that word exists
 ) : ViewModel() {
-    var newId by mutableIntStateOf(
-        id ?: courseWords.maxOfOrDefault(0, Map.Entry<Int, Word>::key).inc()
-    )
+    private val LocalDateTime.millis
+        get() = atZone(ZoneId.systemDefault())
+            .toInstant()
+            .toEpochMilli()
+
+    private fun LocalDateTime(millis: Long): LocalDateTime = Instant
+        .ofEpochMilli(millis)
+        .atZone(ZoneId.systemDefault())
+        .toLocalDateTime()
+
+    val oldWord = courseWords[id]
+
+    val newId = id ?: courseWords.maxOfOrNull { (id, _) -> id + 1 } ?: 1
+
+    var newWord by mutableStateOf(oldWord ?: Word(level.toString()))
         private set
 
-    var newWord by mutableStateOf(courseWords.getOrDefault(id, Word(level.toString())))
-        private set
+    val modified by derivedStateOf { newWord != oldWord }
 
-    var modified by mutableStateOf(false)
-        private set
-
-    fun updateWord(word: Word) {
-        modified = true
-        newWord = word
+    val levelsForName by derivedStateOf {
+        courseWords.values
+            .distinctBy(Word::level)
+            .mapNotNull { word ->
+                if (word.normalizedName == newWord.normalizedName && id != newId) {
+                    word.level
+                } else {
+                    null
+                }
+            }
     }
 
-    fun updateId(id: Int) {
-        modified = false
-        newId = id
+    val levelsForTranslation by derivedStateOf {
+        courseWords.values
+            .distinctBy(Word::level)
+            .mapNotNull { word ->
+                if (word.translation == newWord.translation && id != newId) {
+                    word.level
+                } else {
+                    null
+                }
+            }
+    }
+
+    fun updateWord(word: Word) {
+        newWord = word
     }
 
     fun pickAccessed(dateMillis: Long, minutes: Int, hours: Int) {
@@ -52,19 +80,9 @@ class WordViewModel(
         )
     }
 
-    fun getLevelsForName(courseWords: Map<Int, Word>) = courseWords
-        .filter { (id, word) -> word.normalizedName == newWord.normalizedName && id != newId }
-        .values
-        .map(Word::level)
-        .toSet()
-
-    fun getLevelsForTranslation(courseWords: Map<Int, Word>) = courseWords
-        .filter { (id, word) ->
-            word.normalizedTranslation == newWord.normalizedTranslation && id != newId
-        }
-        .values
-        .map(Word::level)
-        .toSet()
-
-    fun save() = newWord.copy(name = newWord.name.trim(), translation = newWord.translation.trim())
+    fun save() = newWord.copy(
+        name = newWord.name.trim(),
+        translation = newWord.translation.trim(),
+        successRate = model?.predict(newWord.toFeatures(newId)) ?: 1f
+    )
 }

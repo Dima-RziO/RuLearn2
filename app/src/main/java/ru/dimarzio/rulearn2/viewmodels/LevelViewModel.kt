@@ -10,10 +10,7 @@ import ru.dimarzio.rulearn2.utils.toMutableStateMap
 import kotlin.collections.component1
 import kotlin.collections.component2
 
-class LevelViewModel(
-    private val level: String,
-    courseWords: Map<Int, Word>
-) : ViewModel() {
+class LevelViewModel(private val level: String, courseWords: Map<Int, Word>) : ViewModel() {
     private val words = courseWords.filter { (_, word) -> word.level == level }.toMutableStateMap()
 
     var sortMethod by mutableStateOf(SortMethod.Id)

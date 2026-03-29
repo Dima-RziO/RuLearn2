@@ -6,6 +6,7 @@ import kotlin.math.ln
 class StandardProvider : FeaturesProvider {
     override fun provide(
         id: Int,
+        repetitions: Int,
         rating: Int,
         secondsLapsed: Long,
         typeRepeat: Session?,

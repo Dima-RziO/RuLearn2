@@ -34,7 +34,9 @@ fun TextToSpeech.say(text: String, locale: Locale?, onCompletion: (Boolean) -> U
 
     language = locale
 
-    if (speak(text, TextToSpeech.QUEUE_FLUSH, null, "") == TextToSpeech.ERROR) {
+    val result = speak(text, TextToSpeech.QUEUE_FLUSH, null, "")
+
+    if (result == TextToSpeech.ERROR) {
         onCompletion(false)
     }
 }

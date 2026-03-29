@@ -17,8 +17,6 @@ class RepeatReceiver : BroadcastReceiver() {
         const val CHANNEL_ID = "channel"
     }
 
-    private inline fun <R> Database.use(block: Database.() -> R) = database.use { block() }
-
     @SuppressLint("MissingPermission")
     override fun onReceive(context: Context, intent: Intent) {
         val result = runCatching {

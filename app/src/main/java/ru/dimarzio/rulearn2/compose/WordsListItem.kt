@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
@@ -89,39 +88,6 @@ fun WordIndicator(word: Word, maxRating: Int = Word.MAX_RATING) {
 }
 
 @Composable
-fun WordsListItemContainer(
-    onDeleteClick: () -> Unit,
-    onAudioClick: () -> Unit,
-    content: @Composable () -> Unit
-) {
-    SwipeToRevealBox(
-        hiddenContentEnd = {
-            Row {
-                Text(text = "Delete")
-
-                Spacer(modifier = Modifier.size(5.dp))
-
-                Icon(
-                    imageVector = Icons.Filled.Delete,
-                    contentDescription = "Delete"
-                )
-            }
-        },
-        hiddenContentEndBackground = MaterialTheme.colorScheme.errorContainer,
-        onHiddenContentEndClick = onDeleteClick,
-        hiddenContentStart = {
-            Icon(
-                painter = painterResource(id = R.drawable.baseline_sound_24),
-                contentDescription = "Play audio"
-            )
-        },
-        onHiddenContentStartClick = onAudioClick
-    ) {
-        content()
-    }
-}
-
-@Composable
 fun WordsListItem(
     word: Word,
     player: MediaPlayer,
@@ -134,12 +100,11 @@ fun WordsListItem(
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
 
-    WordsListItemContainer(
+    DeleteBox(
         onDeleteClick = onDeleteClick,
         onAudioClick = {
-            word.randomAudio?.let { audio ->
-                player.play(audio)
-            } ?: run {
+            // Get a random audio
+            word.audios?.randomOrNull()?.let { audio -> player.play(audio) } ?: run {
                 tts.say(word.name, locale)
             }
         }

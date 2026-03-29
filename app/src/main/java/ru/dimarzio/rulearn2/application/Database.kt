@@ -7,8 +7,9 @@ import androidx.core.database.getIntOrNull
 import androidx.core.database.getStringOrNull
 import ru.dimarzio.rulearn2.models.Course
 import ru.dimarzio.rulearn2.models.Word
+import ru.dimarzio.rulearn2.tflite.ModelFactory
 import ru.dimarzio.rulearn2.utils.ImageFile
-import ru.dimarzio.rulearn2.viewmodels.PreferencesViewModel
+import ru.dimarzio.rulearn2.viewmodels.PreferencesViewModel.Session
 import java.io.File
 
 /*
@@ -16,12 +17,16 @@ import java.io.File
 * Note: It is caller's responsibility to catch all exceptions
  */
 
-class Database(private val folder: File) { // Not singleton!
-    val database: SQLiteDatabase by lazy { // If exception is thrown, it should be handled by caller
+class Database(private val folder: File) : AutoCloseable { // Not singleton!
+    private val database: SQLiteDatabase by lazy {
         SQLiteDatabase.openOrCreateDatabase(File(folder, DB_NAME), null).apply {
             setForeignKeyConstraintsEnabled(true)
         }
     }
+
+    private val models = ModelFactory
+
+    val path get() = File(database.path)
 
     val courses get() = getCoursesNames().associateWith(::getCourse)
 
@@ -75,15 +80,63 @@ class Database(private val folder: File) { // Not singleton!
         return true
     }
 
-    private fun getRowCount(table: String, condition: String? = null): Int {
-        return query("SELECT COUNT(*) FROM $table" + condition?.let { " WHERE $it" }.orEmpty()) {
+    private fun createTable(name: String, vararg columns: String) {
+        return database.execSQL("CREATE TABLE IF NOT EXISTS'$name'(${columns.joinToString(", ")})")
+    }
+
+    fun rawQuery(sql: String) {
+        database.execSQL(sql)
+    }
+
+    fun <R> use(block: Database.() -> R) = database.use { block() }
+
+    fun getCourse(name: String): Course {
+        val millis = System.currentTimeMillis()
+
+        val stat = name + "_stat"
+
+        val repeat = "skip = 0 AND " +
+                "((rating = 10 AND (($millis - accessed) / $MS) >= 1 * success_rate) OR " +
+                "(rating = 11 AND (($millis - accessed) / $MS) >= 5 * success_rate) OR " +
+                "(rating = 12 AND (($millis - accessed) / $MS) >= 24 * success_rate) OR " +
+                "(rating = 13 AND (($millis - accessed) / $MS) >= 120 * success_rate) OR " +
+                "(rating = 14 AND (($millis - accessed) / $MS) >= 600 * success_rate) OR " +
+                "(rating = 15 AND (($millis - accessed) / $MS) >= 2880 * success_rate))"
+
+        return query(
+            "SELECT " +
+                    "SUM(skip = 0 OR skip IS NULL), " +
+                    "SUM(rating >= 10 AND skip = 0), " +
+                    "SUM($repeat) " +
+                    "FROM '$name' " +
+                    "LEFT JOIN '$stat' ON '$name'.id = '$stat'.id"
+        ) {
             moveToFirst()
-            getInt(0)
+            Course(
+                icon = ImageFile("$folder/icons/$name"),
+                total = getInt(0),
+                learned = getInt(1),
+                repeat = getInt(2)
+            )
         }
     }
 
-    private fun createTable(name: String, vararg columns: String) {
-        return database.execSQL("CREATE TABLE IF NOT EXISTS'$name'(${columns.joinToString(", ")})")
+    fun getRepeatWords(course: String): Int {
+        val millis = System.currentTimeMillis()
+
+        return query(
+            "SELECT COUNT(*) FROM '${course}_stat' " +
+                    "WHERE skip = 0 AND " +
+                    "((rating = 10 AND (($millis - accessed) / $MS) >= 1 * success_rate) OR " +
+                    "(rating = 11 AND (($millis - accessed) / $MS) >= 5 * success_rate) OR " +
+                    "(rating = 12 AND (($millis - accessed) / $MS) >= 24 * success_rate) OR " +
+                    "(rating = 13 AND (($millis - accessed) / $MS) >= 120 * success_rate) OR " +
+                    "(rating = 14 AND (($millis - accessed) / $MS) >= 600 * success_rate) OR " +
+                    "(rating = 15 AND (($millis - accessed) / $MS) >= 2880 * success_rate))"
+        ) {
+            moveToFirst()
+            getInt(0)
+        }
     }
 
     fun getCoursesNames(db: String = MASTER): List<String> {
@@ -98,35 +151,6 @@ class Database(private val folder: File) { // Not singleton!
             columnsExist("$db.'$table'", "id", "word", "translation", "audio", "level")
         }
     }
-
-    fun getRepeatWords(course: String): Int {
-        val millis = System.currentTimeMillis()
-        val ratio = "IFNULL(CAST(sum_correct AS REAL) / NULLIF(CAST(n_repeat AS REAL), 0), 1.0)"
-
-        return getRowCount(
-            "'$course' LEFT JOIN '${course}_stat' ON '$course'.id = '${course}_stat'.id",
-            "skip = 0 " +
-                    "AND ((rating = 10 AND (($millis - accessed) / $MS) >= 1 * $ratio) OR " +
-                    "(rating = 11 AND (($millis - accessed) / $MS) >= 5 * $ratio) OR " +
-                    "(rating = 12 AND (($millis - accessed) / $MS) >= 24 * $ratio) OR " +
-                    "(rating = 13 AND (($millis - accessed) / $MS) >= 120 * $ratio) OR " +
-                    "(rating = 14 AND (($millis - accessed) / $MS) >= 600 * $ratio) OR " +
-                    "(rating = 15 AND (($millis - accessed) / $MS) >= 2880 * $ratio))"
-        )
-    }
-
-    fun getCourse(name: String) = Course(
-        icon = ImageFile("$folder/icons/$name"),
-        repeat = getRepeatWords(name),
-        learned = getRowCount(
-            "'$name' LEFT JOIN '${name}_stat' ON '$name'.id = '${name}_stat'.id",
-            "rating >= 10 AND skip = 0"
-        ),
-        total = getRowCount(
-            "'$name' LEFT JOIN '${name}_stat' ON '$name'.id = '${name}_stat'.id",
-            "skip = 0 OR skip IS NULL"
-        )
-    )
 
     fun createCourse(name: String) { // Do NOT change the logic.
         val course = name.removeSuffix("_stat").removeSuffix("_ml")
@@ -152,8 +176,7 @@ class Database(private val folder: File) { // Not singleton!
                 "skip INTEGER DEFAULT 0",
                 "difficult INTEGER DEFAULT 0",
                 "rating INTEGER DEFAULT 0",
-                "n_repeat INTEGER DEFAULT 0",
-                "sum_correct INTEGER DEFAULT 0"
+                "success_rate REAL DEFAULT 1.0"
             )
         }
 
@@ -199,8 +222,7 @@ class Database(private val folder: File) { // Not singleton!
                 "skip" to line[2].toIntOrNull(),
                 "difficult" to line[3].toIntOrNull(),
                 "rating" to line[4].toIntOrNull(),
-                "n_repeat" to line[5].toIntOrNull(),
-                "sum_correct" to line[6].toIntOrNull()
+                "success_rate" to line[5].toFloatOrNull()
             )
 
             course.endsWith("_ml") -> mapOf(
@@ -227,7 +249,7 @@ class Database(private val folder: File) { // Not singleton!
 
     fun exportTable(course: String): List<List<String?>> {
         val columns = "'$course'.id, word, translation, audio, level"
-        val columnsStat = "id, accessed, skip, difficult, rating, n_repeat, sum_correct"
+        val columnsStat = "id, accessed, skip, difficult, rating, success_rate"
         val columnsMl = "id, n_repeat, sum_correct, cur_rating, s_lapsed, type_repeat, n_hint"
 
         return query(
@@ -264,11 +286,61 @@ class Database(private val folder: File) { // Not singleton!
         val ml = course + "_ml"
 
         val columns = "'$course'.id, word, translation, audio, level"
-        val columnsStat = "accessed, skip, difficult, rating, $stat.n_repeat, $stat.sum_correct"
-        val columnsMl =
-            "s_lapsed, type_repeat, n_hint" // TODO: Select n_repeat and sum_correct from _ml
+        val columnsStat = "accessed, skip, difficult, rating, success_rate"
+        val columnsMl = "n_repeat, sum_correct, s_lapsed, type_repeat, n_hint"
 
         return buildMap {
+            query(
+                "SELECT $columns, $columnsStat, $columnsMl " +
+                        "FROM '$course' " +
+                        "LEFT JOIN '$stat' ON '$course'.id = '$stat'.id " +
+                        "LEFT JOIN '$ml' ON '$course'.id = '$ml'.id"
+            ) {
+                while (moveToNext()) {
+                    this@buildMap[getInt(0)] = Word(
+                        name = getStringOrNull(1).orEmpty(),
+                        translation = getStringOrNull(2).orEmpty(),
+                        audios = getStringOrNull(3)?.split(",", ";")?.let { audios ->
+                            List(audios.size) { index ->
+                                File(
+                                    File(
+                                        folder,
+                                        "audio"
+                                    ),
+                                    "$course/${audios[index].trim()}"
+                                )
+                            }
+                        },
+                        level = getString(4),
+                        accessed = getLong(5),
+                        skip = getInt(6) == 1,
+                        difficult = getInt(7) == 1,
+                        rating = getInt(8),
+                        repetitions = getInt(10),
+                        correctAnswers = getInt(11),
+                        secondsLapsed = getLong(12),
+                        typeRepeat = Session
+                            .entries
+                            .getOrNull(getIntOrNull(13) ?: -1),
+                        hintsUsed = getInt(14),
+                        successRate = getFloat(9)
+                    )
+                }
+            }
+        }
+    }
+
+    fun getTFLiteWords(course: String): Map<Int, Word> {
+        val model = models.getModel(course, File(folder, "tflite/"))
+
+        val stat = course + "_stat"
+        val ml = course + "_ml"
+
+        val columns = "'$course'.id, word, translation, audio, level"
+        val columnsStat = "accessed, skip, difficult, rating"
+        val columnsMl = "'$ml'.n_repeat, '$ml'.sum_correct, s_lapsed, type_repeat, n_hint"
+
+        val words = buildMap {
             query(
                 "SELECT $columns, $columnsStat, $columnsMl " +
                         "FROM '$course' " +
@@ -298,13 +370,26 @@ class Database(private val folder: File) { // Not singleton!
                         repetitions = getInt(9),
                         correctAnswers = getInt(10),
                         secondsLapsed = getLong(11),
-                        typeRepeat = PreferencesViewModel.Session
+                        typeRepeat = Session
                             .entries
                             .getOrNull(getIntOrNull(12) ?: -1),
-                        hintsUsed = getInt(13)
+                        hintsUsed = getInt(13),
+                        successRate = 1f
                     )
                 }
             }
+        }
+
+        val predictions = model?.predict(words.map { (id, word) -> word.toFeatures(id) })
+
+        return if (predictions != null) {
+            val pairs = words.keys.zip(predictions.toTypedArray()) { id, prediction ->
+                id to words.getValue(id).copy(successRate = prediction)
+            }
+
+            pairs.toMap()
+        } else {
+            words
         }
     }
 
@@ -333,8 +418,7 @@ class Database(private val folder: File) { // Not singleton!
                 "skip" to word.skip,
                 "difficult" to word.difficult,
                 "rating" to word.rating,
-                "n_repeat" to word.repetitions,
-                "sum_correct" to word.correctAnswers
+                "success_rate" to word.successRate
             ),
             whereClause = "id = $id"
         )
@@ -379,8 +463,7 @@ class Database(private val folder: File) { // Not singleton!
             "skip INTEGER DEFAULT 0",
             "difficult INTEGER DEFAULT 0",
             "rating INTEGER DEFAULT 0",
-            "n_repeat INTEGER DEFAULT 0",
-            "sum_correct INTEGER DEFAULT 0"
+            "success_rate REAL DEFAULT 1.0"
         )
 
         database.execSQL("INSERT INTO $master.'$stat' SELECT * FROM $slave.'$stat'")
@@ -415,8 +498,8 @@ class Database(private val folder: File) { // Not singleton!
     private fun replicateStat(master: String, slave: String, stat: String) {
         // Insert only those fields, which are absent in master, but exist in slave.
         database.execSQL(
-            "INSERT INTO $master.'$stat' (id, accessed, skip, difficult, rating, n_repeat, sum_correct) " +
-                    "SELECT id, accessed, skip, difficult, rating, n_repeat, sum_correct " +
+            "INSERT INTO $master.'$stat' (id, accessed, skip, difficult, rating, success_rate) " +
+                    "SELECT id, accessed, skip, difficult, rating, success_rate " +
                     "FROM $slave.'$stat' " +
                     "WHERE NOT EXISTS (SELECT 1 FROM $master.'$stat' " +
                     "WHERE $master.'$stat'.id = $slave.'$stat'.id)"
@@ -425,8 +508,8 @@ class Database(private val folder: File) { // Not singleton!
         // Update only those fields, where master.accessed < slave.accessed
         database.execSQL(
             "UPDATE $master.'$stat' " +
-                    "SET (accessed, skip, difficult, rating, n_repeat, sum_correct) = (" +
-                    "SELECT accessed, skip, difficult, rating, n_repeat, sum_correct " +
+                    "SET (accessed, skip, difficult, rating, success_rate) = (" +
+                    "SELECT accessed, skip, difficult, rating, success_rate " +
                     "FROM $slave.'$stat' WHERE $slave.'$stat'.id = $master.'$stat'.id) " +
                     "WHERE EXISTS (SELECT 1 FROM $slave.'$stat' " +
                     "WHERE $slave.'$stat'.id = $master.'$stat'.id " +
@@ -457,7 +540,7 @@ class Database(private val folder: File) { // Not singleton!
         )
     }
 
-    fun replicate(from: File) {
+    fun replicate(from: File): List<String> { // Result is replicated courses.
         try {
             database.execSQL("ATTACH DATABASE '$from' AS $SLAVE")
 
@@ -473,12 +556,24 @@ class Database(private val folder: File) { // Not singleton!
             masterCourses.forEach { course ->
                 if (course in slaveCourses) {
                     replicateWords(MASTER, SLAVE, course)
-                    replicateMl(MASTER, SLAVE, course + "_ml", course + "_stat") // Do NOT change the order.
+                    replicateMl(
+                        MASTER,
+                        SLAVE,
+                        course + "_ml",
+                        course + "_stat"
+                    ) // Do NOT change the order.
                     replicateStat(MASTER, SLAVE, course + "_stat")
                 }
             }
+
+            return slaveCourses
         } finally {
             database.execSQL("DETACH DATABASE $SLAVE")
         }
+
+    }
+
+    override fun close() {
+        database.close()
     }
 }

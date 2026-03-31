@@ -115,7 +115,11 @@ class CourseViewModel(
 
     val locale = Locale(course.take(2))
 
-    val model = ModelFactory.getModel(course, File(appFolder, "tflite/"))
+    val model = if (PreferencesViewModel.settings.allowML) {
+        ModelFactory.getModel(course, File(appFolder, "tflite/"))
+    } else {
+        null
+    }
 
     init {
         viewModelScope.launch {

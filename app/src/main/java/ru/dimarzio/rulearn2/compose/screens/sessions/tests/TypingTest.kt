@@ -61,8 +61,7 @@ fun TypingTest(
     error: Boolean,
     helperText: Boolean,
     onDoneClick: () -> Unit,
-    maxRating: Int = Word.MAX_RATING,
-    hidden: Boolean = false
+    maxRating: Int = Word.MAX_RATING
 ) {
     Scaffold(
         topBar = {
@@ -92,7 +91,7 @@ fun TypingTest(
 
             Row(modifier = Modifier.padding(10.dp)) {
                 AutoSizeText(
-                    text = if (!hidden) word.translation else "...",
+                    text = word.translation,
                     maxFontSize = 24.sp,
                     minFontSize = 16.sp,
                     modifier = Modifier.weight(1f),

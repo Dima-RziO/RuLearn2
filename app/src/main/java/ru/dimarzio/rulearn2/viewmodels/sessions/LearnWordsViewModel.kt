@@ -1,9 +1,7 @@
 package ru.dimarzio.rulearn2.viewmodels.sessions
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import ru.dimarzio.rulearn2.models.Word
+import ru.dimarzio.rulearn2.routes.SessionRoutes
 import ru.dimarzio.rulearn2.viewmodels.PreferencesViewModel.Session
 
 class LearnWordsViewModel(
@@ -11,17 +9,20 @@ class LearnWordsViewModel(
     level: String?,
     limit: Int
 ) : SessionViewModel(LearnNewWordsImp(courseWords, level, limit)) {
-    var hidden by mutableStateOf(false)
-        private set
-
-    override fun next() {
-        if (!iterator.isDone()) {
-            iterator.next()
-
-            hidden = true
+    init {
+        val word = imp.current()
+        if (word != null) {
+            makeRoute(word)?.let { route -> _navigationEvents.trySend(route.route to word) }
         }
+    }
 
-        currentWord = iterator.current()
+    override fun makeRoute(word: SessionWord): SessionRoutes? {
+        return when (word.getWord().rating) {
+            0 -> SessionRoutes.NewWord
+            in 1..8 -> SessionRoutes.GuessingTest
+            9 -> SessionRoutes.TypingTest
+            else -> null
+        }
     }
 
     override fun makeWord(prototype: SessionWord, correct: Boolean, hintsUsed: Int): SessionWord {
@@ -45,9 +46,5 @@ class LearnWordsViewModel(
                 hintsUsed = hintsUsed
             )
         )
-    }
-
-    fun toggleHidden(hidden: Boolean) {
-        this.hidden = hidden
     }
 }

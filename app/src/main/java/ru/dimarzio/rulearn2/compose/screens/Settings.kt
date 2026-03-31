@@ -36,6 +36,12 @@ fun Settings(
     onTtsChange: (Boolean) -> Unit,
     backGesture: Boolean,
     onBackGestureChange: (Boolean) -> Unit,
+    allowML: Boolean,
+    onAllowMLChange: (Boolean) -> Unit,
+    calculateSuccessRate: Boolean,
+    onCalculateSuccessRateChange: (Boolean) -> Unit,
+    deprecatedProvider: Boolean,
+    onDeprecatedProviderChange: (Boolean) -> Unit,
     notify: Boolean,
     onNotifyChange: (Boolean) -> Unit,
     notifyPer: Duration,
@@ -106,6 +112,34 @@ fun Settings(
                     summary = "Refresh current word on back gesture",
                     checked = backGesture,
                     onCheckedChange = onBackGestureChange
+                )
+            }
+
+            PreferenceCategory(
+                title = "Machine learning settings",
+                dividerAbove = true,
+            ) {
+                SwitchPreference(
+                    title = "Allow machine learning",
+                    summary = "Use TFLite to predict success_rate",
+                    checked = allowML,
+                    onCheckedChange = onAllowMLChange
+                )
+
+                SwitchPreference(
+                    title = "Calculate success_rate as ratio",
+                    summary = "Evaluate success_rate as sum_correct / n_repeat if TFLite model is not loaded",
+                    checked = calculateSuccessRate,
+                    onCheckedChange = onCalculateSuccessRateChange,
+                    enabled = allowML
+                )
+
+                SwitchPreference(
+                    title = "Use deprecated provider",
+                    summary = "Use deprecated features provider for TFLite models",
+                    checked = deprecatedProvider,
+                    onCheckedChange = onDeprecatedProviderChange,
+                    enabled = allowML
                 )
             }
 

@@ -14,6 +14,7 @@ import androidx.lifecycle.viewModelScope
 import ru.dimarzio.rulearn2.models.Word
 import ru.dimarzio.rulearn2.utils.deviceVolume
 import ru.dimarzio.rulearn2.utils.normalized
+import ru.dimarzio.rulearn2.viewmodels.PreferencesViewModel
 import ru.dimarzio.rulearn2.viewmodels.sessions.tests.media.MediaFacade
 import vladis.luv.rulearn.Utils
 import java.util.Locale
@@ -62,11 +63,10 @@ class TypingTestViewModel : ViewModel() {
         player: MediaPlayer,
         tts: TextToSpeech?,
         locale: Locale,
-        papasHints: Boolean,
         correct: Word,
         onRefreshRequested: () -> Unit
     ): Boolean {
-        val text = if (!papasHints) {
+        val text = if (!PreferencesViewModel.settings.papasHints) {
             inputValue.text.takeHint(correct.name)
         } else {
             Utils.getHint(inputValue.text, correct.name)
@@ -75,13 +75,13 @@ class TypingTestViewModel : ViewModel() {
         hintsUsed++
 
         return type(
-            context,
-            player,
-            tts,
-            locale,
-            correct,
-            TextFieldValue(text, TextRange(text.length)),
-            onRefreshRequested
+            context = context,
+            player = player,
+            tts = tts,
+            locale = locale,
+            correct = correct,
+            value = TextFieldValue(text, TextRange(text.length)),
+            onRefreshRequested = onRefreshRequested
         )
     }
 

@@ -66,7 +66,6 @@ import ru.dimarzio.rulearn2.viewmodels.io.export.CourseFactory
 import ru.dimarzio.rulearn2.viewmodels.io.export.CoursesFactory
 import ru.dimarzio.rulearn2.viewmodels.io.export.DatabaseFactory
 import ru.dimarzio.rulearn2.viewmodels.sessions.DifficultWordsViewModel
-import ru.dimarzio.rulearn2.viewmodels.sessions.GuessingReviewViewModel
 import ru.dimarzio.rulearn2.viewmodels.sessions.LearnWordsViewModel
 import ru.dimarzio.rulearn2.viewmodels.sessions.ReviewViewModel
 import ru.dimarzio.rulearn2.viewmodels.sessions.WordAdapter
@@ -83,6 +82,7 @@ import ru.dimarzio.rulearn2.viewmodels.sessions.difficult.DifficultWordAdapter
     * GoF Decorator
     * GoF Facade
     * GoF Flyweight
+    * GoF Proxy
     * GoF Chain of Responsibility
     * GoF Iterator
     * GoF Observer
@@ -505,12 +505,12 @@ fun GuessingReviewRoute(
 
     if (courseViewModel != null) {
         val courseWords by  courseViewModel.words.collectAsState()
-        val reviewViewModel = viewModel<GuessingReviewViewModel>(
+        val reviewViewModel = viewModel<ReviewViewModel>(
             factory = viewModelFactory {
-                addInitializer(GuessingReviewViewModel::class) {
-                    GuessingReviewViewModel(
+                addInitializer(ReviewViewModel::class) {
+                    ReviewViewModel(
                         model = courseViewModel.model,
-                        markDifficult = prefsViewModel.markDifficult,
+                        type = PreferencesViewModel.Session.GuessingReview,
                         courseWords = courseWords,
                         level = level,
                         limit = 25
@@ -530,6 +530,7 @@ fun GuessingReviewRoute(
             GuessingReview(
                 currentId = currentId,
                 currentWord = currentWord,
+                navigationEvents = reviewViewModel.navigationEvents,
                 repeatedWords = reviewViewModel.rote,
                 player = player,
                 tts = tts,
@@ -553,11 +554,8 @@ fun GuessingReviewRoute(
                 handler = handler,
                 courseWords = courseWords,
                 otherLevels = courseViewModel.levels.collectAsState().value.keys,
-                similarWords = prefsViewModel.similarWords,
-                skippedWords = prefsViewModel.skippedWords,
                 onNavigationIconClick = navController::navigateUp,
                 progress = reviewViewModel.progress,
-                useTts = prefsViewModel.tts,
                 onAnswer = { correct ->
                     val new = reviewViewModel.answer(correct, 0)
 
@@ -574,8 +572,6 @@ fun GuessingReviewRoute(
                 },
                 onRefreshRequested = reviewViewModel::next,
                 ended = reviewViewModel.ended,
-                hidden = reviewViewModel.hidden,
-                hide = reviewViewModel::toggleHidden,
                 model = courseViewModel.model,
                 getWord = courseViewModel::getWord,
                 onSettingsActionClick = { navController.navigate(MainRoutes.Settings.route) }
@@ -611,7 +607,6 @@ fun TypingReviewRoute(
                     ReviewViewModel(
                         model = courseViewModel.model,
                         type = PreferencesViewModel.Session.TypingReview,
-                        markDifficult = prefsViewModel.markDifficult,
                         courseWords = courseWords,
                         level = level,
                         limit = 25
@@ -631,6 +626,7 @@ fun TypingReviewRoute(
             TypingReview(
                 currentId = currentId,
                 currentWord = currentWord,
+                navigationEvents = reviewViewModel.navigationEvents,
                 repeatedWords = reviewViewModel.rote,
                 player = player,
                 tts = tts,
@@ -657,8 +653,6 @@ fun TypingReviewRoute(
                 progress = reviewViewModel.progress,
                 courseWords = courseWords,
                 otherLevels = courseViewModel.levels.collectAsState().value.keys,
-                useTts = prefsViewModel.tts,
-                papasHints = prefsViewModel.papasHints,
                 onAnswer = { correct, hintsUsed ->
                     val new = reviewViewModel.answer(correct, hintsUsed)
 
@@ -739,17 +733,14 @@ fun LearnWordsRoute(
                 },
                 currentId = currentId,
                 currentWord = currentWord,
+                navigationEvents = learnWordsViewModel.navigationEvents,
                 model = courseViewModel.model,
                 getWord = courseViewModel::getWord,
                 onSettingsActionClick = { navController.navigate(MainRoutes.Settings.route) },
                 courseWords = courseWords,
                 otherLevels = courseViewModel.levels.collectAsState().value.keys,
-                similarWords = prefsViewModel.similarWords,
-                skippedWords = prefsViewModel.skippedWords,
                 onNavigationIconClick = navController::popBackStack,
                 progress = learnWordsViewModel.progress,
-                useTts = prefsViewModel.tts,
-                papasHints = prefsViewModel.papasHints,
                 onAnswer = { correct, hintsUsed ->
                     val new = learnWordsViewModel.answer(correct, hintsUsed)
 
@@ -760,9 +751,7 @@ fun LearnWordsRoute(
                     }
                 },
                 onRefreshRequested = learnWordsViewModel::next,
-                ended = learnWordsViewModel.ended,
-                hidden = learnWordsViewModel.hidden,
-                hide = learnWordsViewModel::toggleHidden
+                ended = learnWordsViewModel.ended
             )
         } else {
             LaunchedEffect(key1 = Unit) {
@@ -837,18 +826,15 @@ fun DifficultWordsRoute(
                 },
                 currentId = difficultWord.id,
                 currentWord = difficultWord.word,
+                navigationEvents = difficultWordsViewModel.navigationEvents,
                 currentState = difficultWord.state,
                 getWord = courseViewModel::getWord,
                 onSettingsActionClick = { navController.navigate(MainRoutes.Settings.route) },
                 courseWords = courseWords,
                 otherLevels = courseViewModel.levels.collectAsState().value.keys,
                 handler = handler,
-                similarWords = prefsViewModel.similarWords,
-                skippedWords = prefsViewModel.skippedWords,
                 onNavigationIconClick = navController::popBackStack,
                 progress = difficultWordsViewModel.progress,
-                useTts = prefsViewModel.tts,
-                papasHints = prefsViewModel.papasHints,
                 onAnswer = { correct, hintsUsed ->
                     val new = difficultWordsViewModel.answer(correct, hintsUsed)
 
@@ -859,9 +845,7 @@ fun DifficultWordsRoute(
                     }
                 },
                 onRefreshRequested = difficultWordsViewModel::next,
-                ended = difficultWordsViewModel.ended,
-                hidden = difficultWordsViewModel.hidden,
-                hide = difficultWordsViewModel::toggleHidden
+                ended = difficultWordsViewModel.ended
             )
         } else {
             LaunchedEffect(key1 = Unit) {
@@ -927,6 +911,12 @@ fun SettingsRoute(
         tts = prefsViewModel.tts,
         onTtsChange = prefsViewModel::updateTts,
         backGesture = prefsViewModel.backGesture,
+        allowML = prefsViewModel.allowML,
+        onAllowMLChange = prefsViewModel::updateAllowML,
+        calculateSuccessRate = prefsViewModel.calculateSuccessRate,
+        onCalculateSuccessRateChange = prefsViewModel::updateCalculate,
+        deprecatedProvider = prefsViewModel.deprecatedProvider,
+        onDeprecatedProviderChange = prefsViewModel::updateDeprecated,
         onBackGestureChange = prefsViewModel::updateBackGesture,
         notify = prefsViewModel.notify,
         onNotifyChange = { notify ->

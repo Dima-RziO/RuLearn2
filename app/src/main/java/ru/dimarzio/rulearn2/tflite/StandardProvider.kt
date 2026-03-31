@@ -4,21 +4,14 @@ import ru.dimarzio.rulearn2.viewmodels.PreferencesViewModel.Session
 import kotlin.math.ln
 
 class StandardProvider : FeaturesProvider {
-    override fun provide(
-        id: Int,
-        repetitions: Int,
-        rating: Int,
-        secondsLapsed: Long,
-        typeRepeat: Session?,
-        hintsUsed: Int
-    ) = floatArrayOf(
-        if (typeRepeat == Session.LearnNewWords) 1f else 0f, // enc__type_repeat_0
-        if (typeRepeat == Session.DifficultWords) 1f else 0f, // enc__type_repeat_1
-        if (typeRepeat == Session.TypingReview) 1f else 0f, // enc__type_repeat_2
-        if (typeRepeat == Session.GuessingReview) 1f else 0f, // enc__type_repeat_3
-        ln(secondsLapsed.toDouble() + 1).toFloat(), // log__s_lapsed
-        id.toFloat(), // remainder__id
-        rating.toFloat(), // remainder__cur_rating
-        hintsUsed.toFloat() // remainder__n_hint
+    override fun provide(features: Features) = floatArrayOf(
+        if (features.typeRepeat == Session.LearnNewWords) 1f else 0f, // enc__type_repeat_0
+        if (features.typeRepeat == Session.DifficultWords) 1f else 0f, // enc__type_repeat_1
+        if (features.typeRepeat == Session.TypingReview) 1f else 0f, // enc__type_repeat_2
+        if (features.typeRepeat == Session.GuessingReview) 1f else 0f, // enc__type_repeat_3
+        ln(features.secondsLapsed.toDouble() + 1).toFloat(), // log__s_lapsed
+        features.id.toFloat(), // remainder__id
+        features.rating.toFloat(), // remainder__cur_rating
+        features.hintsUsed.toFloat() // remainder__n_hint
     )
 }

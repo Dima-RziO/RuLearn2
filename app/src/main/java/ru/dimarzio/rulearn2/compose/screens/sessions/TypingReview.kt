@@ -17,6 +17,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import ru.dimarzio.rulearn2.compose.SessionContainer
 import ru.dimarzio.rulearn2.compose.screens.sessions.tests.TypingTest
@@ -25,7 +26,9 @@ import ru.dimarzio.rulearn2.routes.SessionRoutes
 import ru.dimarzio.rulearn2.tflite.TFLiteModel
 import ru.dimarzio.rulearn2.utils.navigate
 import ru.dimarzio.rulearn2.utils.play
+import ru.dimarzio.rulearn2.viewmodels.PreferencesViewModel
 import ru.dimarzio.rulearn2.viewmodels.WordViewModel
+import ru.dimarzio.rulearn2.viewmodels.sessions.SessionWord
 import ru.dimarzio.rulearn2.viewmodels.sessions.tests.TypingTestViewModel
 import java.util.Locale
 
@@ -34,6 +37,7 @@ import java.util.Locale
 fun TypingReview(
     currentId: Int,
     currentWord: Word,
+    navigationEvents: Flow<Pair<String, SessionWord>>,
     repeatedWords: Map<Int, Word>,
     player: MediaPlayer,
     tts: TextToSpeech,
@@ -46,8 +50,6 @@ fun TypingReview(
     correctAnswers: Int,
     onNavigationIconClick: () -> Unit,
     progress: Float,
-    useTts: Boolean,
-    papasHints: Boolean,
     onAnswer: (Boolean, Int) -> Unit,
     onRefreshRequested: () -> Unit,
     ended: Boolean,
@@ -83,8 +85,8 @@ fun TypingReview(
             composable(SessionRoutes.TypingTest.route) {
                 val typingTestViewModel = viewModel<TypingTestViewModel>()
 
-                LaunchedEffect(key1 = currentWord, key2 = currentId) {
-                    if (currentWord.isRepeat && !ended) {
+                LaunchedEffect(Unit) {
+                    navigationEvents.collect {
                         typingTestViewModel.reset()
                     }
                 }
@@ -108,7 +110,7 @@ fun TypingReview(
                             typingTestViewModel.type(
                                 context = context,
                                 player = player,
-                                tts = tts.takeIf { useTts },
+                                tts = tts.takeIf { PreferencesViewModel.settings.tts },
                                 locale = locale,
                                 correct = currentWord,
                                 value = value,
@@ -124,9 +126,8 @@ fun TypingReview(
                             typingTestViewModel.takeHint(
                                 context = context,
                                 player = player,
-                                tts = tts.takeIf { useTts },
+                                tts = tts.takeIf { PreferencesViewModel.settings.tts },
                                 locale = locale,
-                                papasHints = papasHints,
                                 correct = currentWord,
                                 onRefreshRequested = onRefreshRequested
                             )
@@ -140,7 +141,7 @@ fun TypingReview(
                         typingTestViewModel.answer(
                             context = context,
                             player = player,
-                            tts = tts.takeIf { useTts },
+                            tts = tts.takeIf { PreferencesViewModel.settings.tts },
                             locale = locale,
                             word = currentWord,
                             correct = false,

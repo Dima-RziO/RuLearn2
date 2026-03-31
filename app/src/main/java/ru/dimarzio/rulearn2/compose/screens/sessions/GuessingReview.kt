@@ -17,6 +17,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import ru.dimarzio.rulearn2.compose.SessionContainer
 import ru.dimarzio.rulearn2.compose.screens.Word
@@ -27,7 +28,9 @@ import ru.dimarzio.rulearn2.tflite.TFLiteModel
 import ru.dimarzio.rulearn2.utils.navigate
 import ru.dimarzio.rulearn2.utils.play
 import ru.dimarzio.rulearn2.viewmodels.ErrorHandler
+import ru.dimarzio.rulearn2.viewmodels.PreferencesViewModel
 import ru.dimarzio.rulearn2.viewmodels.WordViewModel
+import ru.dimarzio.rulearn2.viewmodels.sessions.SessionWord
 import ru.dimarzio.rulearn2.viewmodels.sessions.tests.GuessingTestViewModel
 import java.util.Locale
 
@@ -36,6 +39,7 @@ import java.util.Locale
 fun GuessingReview(
     currentId: Int,
     currentWord: Word,
+    navigationEvents: Flow<Pair<String, SessionWord>>,
     repeatedWords: Map<Int, Word>,
     player: MediaPlayer,
     tts: TextToSpeech,
@@ -45,16 +49,11 @@ fun GuessingReview(
     handler: ErrorHandler,
     courseWords: Map<Int, Word>,
     otherLevels: Set<String>,
-    similarWords: Boolean,
-    skippedWords: Boolean,
     onNavigationIconClick: () -> Unit,
     progress: Float,
-    useTts: Boolean,
     onAnswer: (Boolean) -> Unit,
     onRefreshRequested: () -> Unit,
     ended: Boolean,
-    hidden: Boolean,
-    hide: (Boolean) -> Unit,
     model: TFLiteModel?,
     getWord: (Int) -> Word?,
     onSettingsActionClick: () -> Unit
@@ -95,17 +94,14 @@ fun GuessingReview(
                     }
                 )
 
-                LaunchedEffect(key1 = currentWord, key2 = currentId) {
-                    if (currentWord.isRepeat && !ended) {
+                LaunchedEffect(Unit) {
+                    guessingTestViewModel.generateTranslations(currentId, currentWord, courseWords)
+                    navigationEvents.collect { (_, word) ->
                         guessingTestViewModel.reverse()
-                        hide(false)
-
                         guessingTestViewModel.generateTranslations(
-                            id = currentId,
-                            word = currentWord,
+                            id = word.getId(),
+                            word = word.getWord(),
                             courseWords = courseWords,
-                            similarWords = similarWords,
-                            skippedWords = skippedWords
                         )
                     }
                 }
@@ -128,12 +124,11 @@ fun GuessingReview(
                     translations = guessingTestViewModel.translations,
                     getWord = getWord,
                     ended = ended,
-                    hidden = hidden,
                     onAnswer = { clicked ->
                         guessingTestViewModel.answer(
                             context = context,
                             player = player,
-                            tts = tts.takeIf { useTts },
+                            tts = tts.takeIf { PreferencesViewModel.settings.tts },
                             locale = locale,
                             correctId = currentId,
                             correctWord = currentWord,

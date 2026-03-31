@@ -59,7 +59,6 @@ fun NewWord(
     onLearnedClick: () -> Unit,
     onDifficultClick: (Boolean) -> Unit,
     ended: Boolean,
-    hidden: Boolean,
     onContinueClick: () -> Unit,
     maxRating: Int = Word.MAX_RATING
 ) {
@@ -114,7 +113,7 @@ fun NewWord(
             Row(modifier = Modifier.padding(10.dp)) {
                 Column(modifier = Modifier.weight(1f)) {
                     AutoSizeText(
-                        text = if (!hidden) word.name else "...",
+                        text = word.name,
                         maxFontSize = 24.sp,
                         minFontSize = 16.sp,
                         maxLines = 2,
@@ -122,7 +121,7 @@ fun NewWord(
                     )
 
                     AutoSizeText(
-                        text = if (!hidden) word.translation else "...",
+                        text = word.translation,
                         maxFontSize = 16.sp,
                         minFontSize = 12.sp,
                         maxLines = 12,

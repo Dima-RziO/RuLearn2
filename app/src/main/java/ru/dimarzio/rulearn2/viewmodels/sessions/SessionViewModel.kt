@@ -6,46 +6,65 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.receiveAsFlow
 import ru.dimarzio.rulearn2.models.Word
+import ru.dimarzio.rulearn2.routes.SessionRoutes
 import ru.dimarzio.rulearn2.viewmodels.Observer
 import ru.dimarzio.rulearn2.viewmodels.Subject
 
 // Abstraction
-open class SessionViewModel(protected val iterator: SessionViewModelImp) : ViewModel(), Observer {
+open class SessionViewModel(protected val imp: SessionViewModelImp) : ViewModel(), Observer {
     protected var version by mutableIntStateOf(0)
+    protected val _navigationEvents = Channel<Pair<String, SessionWord>>(Channel.BUFFERED)
 
-    open var currentWord by mutableStateOf(iterator.current())
+    val navigationEvents = _navigationEvents.receiveAsFlow()
+
+    open var currentWord by mutableStateOf(imp.current())
         protected set
 
-    open val progress by derivedStateOf { iterator.getProgress().also { version } }
-    open val rote by derivedStateOf { iterator.getTraversed().also { version } }
-    open val ended by derivedStateOf { iterator.isDone().also { version } }
+    open val progress by derivedStateOf { imp.getProgress().also { version } }
+    open val rote by derivedStateOf { imp.getTraversed().also { version } }
+    open val ended by derivedStateOf { imp.isDone().also { version } }
 
     init {
-        iterator.first()
-        currentWord = iterator.current()
+        imp.first()
+        currentWord = imp.current()
 
-        iterator.attach(this)
+        imp.attach(this)
     }
 
     open fun next() {
-        if (!iterator.isDone()) {
-            iterator.next()
+        if (!imp.isDone()) {
+            imp.next()
         }
 
-        currentWord = iterator.current()
+        val word = imp.current()
+        currentWord = word
+
+        if (word != null) {
+            makeRoute(word)?.route?.let { route -> _navigationEvents.trySend(route to word) }
+        }
     }
 
-    open fun makeWord(prototype: SessionWord, correct: Boolean, hintsUsed: Int): SessionWord { // GoF Factory Method
+    open fun makeRoute(word: SessionWord): SessionRoutes? {
+        return null
+    }
+
+    open fun makeWord(
+        prototype: SessionWord,
+        correct: Boolean,
+        hintsUsed: Int
+    ): SessionWord { // GoF Factory Method
         return prototype.clone(prototype.getWord())
     }
 
     open fun answer(correct: Boolean, hintsUsed: Int): Word? { // GoF Template Method
-        val word = iterator.current()
+        val word = imp.current()
         if (word != null) {
             val word = makeWord(word, correct, hintsUsed)
 
-            iterator.emend(word)
+            imp.emend(word)
             return word.getWord()
         }
 
@@ -53,15 +72,15 @@ open class SessionViewModel(protected val iterator: SessionViewModelImp) : ViewM
     }
 
     open fun removeWord(id: Int) {
-        iterator.neglect(id)
+        imp.neglect(id)
     }
 
     open fun updateWord(word: SessionWord) {
-        iterator.emend(word)
+        imp.emend(word)
     }
 
     override fun update(subject: Subject) {
-        if (subject === iterator) {
+        if (subject === imp) {
             version++
         }
     }

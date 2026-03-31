@@ -15,6 +15,7 @@ import ru.dimarzio.rulearn2.models.Word
 import ru.dimarzio.rulearn2.utils.deviceVolume
 import ru.dimarzio.rulearn2.utils.whether
 import ru.dimarzio.rulearn2.viewmodels.ErrorHandler
+import ru.dimarzio.rulearn2.viewmodels.PreferencesViewModel
 import ru.dimarzio.rulearn2.viewmodels.sessions.tests.media.MediaFacade
 import java.util.Locale
 
@@ -73,18 +74,16 @@ class GuessingTestViewModel(private val handler: ErrorHandler) : ViewModel() {
     private fun generateTranslations(
         correctId: Int,
         correctName: String,
-        courseWords: Map<Int, Word>,
-        similarWords: Boolean,
-        skippedWords: Boolean
+        courseWords: Map<Int, Word>
     ) = correctId
         .plus(
             courseWords
                 .entries
                 .shuffled()
-                .whether(similarWords) {
+                .whether(PreferencesViewModel.settings.similarWords) {
                     sortedBySimilarity2(correctName) { (_, word) -> word.name }
                 }
-                .whether(!skippedWords) {
+                .whether(!PreferencesViewModel.settings.skippedWords) {
                     filterNot { (_, word) -> word.skip }
                 }
                 .map { (id, _) -> id }
@@ -124,13 +123,7 @@ class GuessingTestViewModel(private val handler: ErrorHandler) : ViewModel() {
         )
     }
 
-    fun generateTranslations(
-        id: Int,
-        word: Word,
-        courseWords: Map<Int, Word>,
-        similarWords: Boolean,
-        skippedWords: Boolean
-    ) {
+    fun generateTranslations(id: Int, word: Word, courseWords: Map<Int, Word>) {
         viewModelScope.launch {
             loading = true
 
@@ -139,9 +132,7 @@ class GuessingTestViewModel(private val handler: ErrorHandler) : ViewModel() {
                     generateTranslations(
                         id,
                         word.name,
-                        courseWords,
-                        similarWords,
-                        skippedWords
+                        courseWords
                     )
                 }
             }

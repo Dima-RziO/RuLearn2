@@ -63,7 +63,6 @@ fun GuessingTest(
     translations: Map<Int, TranslationState>,
     getWord: (Int) -> Word?,
     ended: Boolean,
-    hidden: Boolean,
     onAnswer: (Int) -> Unit,
     onTranslationLongClick: (Int) -> Unit,
     maxRating: Int = Word.MAX_RATING
@@ -100,15 +99,7 @@ fun GuessingTest(
                     .padding(10.dp)
             ) {
                 AutoSizeText(
-                    text = if (!hidden) {
-                        if (!reversed) {
-                            word.name
-                        } else {
-                            word.translation
-                        }
-                    } else {
-                        "..."
-                    },
+                    text = if (!reversed) word.name else word.translation,
                     maxFontSize = 24.sp,
                     minFontSize = 16.sp,
                     modifier = Modifier.weight(1f)

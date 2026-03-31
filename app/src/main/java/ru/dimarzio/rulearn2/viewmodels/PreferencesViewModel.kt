@@ -46,6 +46,13 @@ class PreferencesViewModel(private val application: Application) : ViewModel() {
     var backGesture by mutableStateOf(prefs.getBoolean(BACK_GESTURE, false))
         private set
 
+    var allowML by mutableStateOf(prefs.getBoolean(ALLOW_ML, true))
+        private set
+    var calculateSuccessRate by mutableStateOf(prefs.getBoolean(CALCULATE_RATIO, true))
+        private set
+    var deprecatedProvider by mutableStateOf(prefs.getBoolean(DEPRECATED_PROVIDER, false))
+        private set
+
     var notify by mutableStateOf(
         if (application.notifyPermissionGranted) {
             prefs.getBoolean(NOTIFY, application.notifyPermissionGranted)
@@ -96,6 +103,25 @@ class PreferencesViewModel(private val application: Application) : ViewModel() {
     init {
         inDir.mkdir()
         outDir.mkdir()
+
+        settings = Settings(
+            selectedCourse = selectedCourse,
+            selectedSession = selectedSession,
+            markDifficult = markDifficult,
+            papasHints = papasHints,
+            similarWords = similarWords,
+            skippedWords = skippedWords,
+            tts = tts,
+            backGesture = backGesture,
+            allowML = allowML,
+            calculateSuccessRate = calculateSuccessRate,
+            deprecatedProvider = deprecatedProvider,
+            notify = notify,
+            notifyPer = notifyPer,
+            useCustomFolder = useCustomFolder,
+            customFolderPath = customFolderPath,
+            dynamicColors = dynamicColors
+        )
     }
 
     private val notificationIntent = PendingIntent.getBroadcast(
@@ -107,7 +133,7 @@ class PreferencesViewModel(private val application: Application) : ViewModel() {
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
     )
 
-    private companion object {
+    companion object {
         private const val SELECTED_COURSE_PREF = "selected_course"
         private const val SELECTED_SESSION = "selected_learn_mode"
         private const val MARK_DIFFICULT = "mark_difficult"
@@ -116,6 +142,11 @@ class PreferencesViewModel(private val application: Application) : ViewModel() {
         private const val SKIPPED_WORDS = "skipped_words"
         private const val TTS = "tts"
         private const val BACK_GESTURE = "back_gesture"
+
+        private const val ALLOW_ML = "allow_machine_learning"
+        private const val CALCULATE_RATIO = "calculate_success_rate"
+        private const val DEPRECATED_PROVIDER = "deprecated_provider"
+
         private const val NOTIFY = "notify"
         private const val NOTIFY_PER = "notify_per"
         private const val USE_CUSTOM_FOLDER = "use_custom_folder"
@@ -123,6 +154,9 @@ class PreferencesViewModel(private val application: Application) : ViewModel() {
         private const val DYNAMIC_COLORS = "dynamic_colors"
 
         private const val INTENT_REQUEST_CODE = 1
+
+        lateinit var settings: Settings
+            private set
     }
 
     enum class Session {
@@ -133,7 +167,7 @@ class PreferencesViewModel(private val application: Application) : ViewModel() {
     }
 
     data class Settings(
-        val selectedCourse: String,
+        val selectedCourse: String?,
         val selectedSession: Session,
         val markDifficult: Boolean,
         val papasHints: Boolean,
@@ -141,6 +175,9 @@ class PreferencesViewModel(private val application: Application) : ViewModel() {
         val skippedWords: Boolean,
         val tts: Boolean,
         val backGesture: Boolean,
+        val allowML: Boolean,
+        val calculateSuccessRate: Boolean,
+        val deprecatedProvider: Boolean,
         val notify: Boolean,
         val notifyPer: Duration,
         val useCustomFolder: Boolean,
@@ -163,6 +200,7 @@ class PreferencesViewModel(private val application: Application) : ViewModel() {
         }
 
         selectedCourse = course
+        settings = settings.copy(selectedCourse = course)
     }
 
     fun updateSelectedSession(with: Session) {
@@ -171,6 +209,7 @@ class PreferencesViewModel(private val application: Application) : ViewModel() {
         }
 
         selectedSession = with
+        settings = settings.copy(selectedSession = with)
     }
 
     fun updateMarkDifficult(with: Boolean) {
@@ -179,6 +218,7 @@ class PreferencesViewModel(private val application: Application) : ViewModel() {
         }
 
         markDifficult = with
+        settings = settings.copy(markDifficult = with)
     }
 
     fun updatePapasHints(with: Boolean) {
@@ -187,6 +227,7 @@ class PreferencesViewModel(private val application: Application) : ViewModel() {
         }
 
         papasHints = with
+        settings = settings.copy(papasHints = with)
     }
 
     fun updateSimilarWords(with: Boolean) {
@@ -195,6 +236,7 @@ class PreferencesViewModel(private val application: Application) : ViewModel() {
         }
 
         similarWords = with
+        settings = settings.copy(similarWords = with)
     }
 
     fun updateSkippedWords(with: Boolean) {
@@ -203,6 +245,7 @@ class PreferencesViewModel(private val application: Application) : ViewModel() {
         }
 
         skippedWords = with
+        settings = settings.copy(skippedWords = with)
     }
 
     fun updateTts(with: Boolean) {
@@ -211,6 +254,7 @@ class PreferencesViewModel(private val application: Application) : ViewModel() {
         }
 
         tts = with
+        settings = settings.copy(tts = with)
     }
 
     fun updateBackGesture(with: Boolean) {
@@ -219,6 +263,34 @@ class PreferencesViewModel(private val application: Application) : ViewModel() {
         }
 
         backGesture = with
+        settings = settings.copy(backGesture = with)
+    }
+
+    fun updateAllowML(with: Boolean) {
+        prefs.edit {
+            putBoolean(ALLOW_ML, with)
+        }
+
+        allowML = with
+        settings = settings.copy(allowML = with)
+    }
+
+    fun updateCalculate(with: Boolean) {
+        prefs.edit {
+            putBoolean(CALCULATE_RATIO, with)
+        }
+
+        calculateSuccessRate = with
+        settings = settings.copy(calculateSuccessRate = with)
+    }
+
+    fun updateDeprecated(with: Boolean) {
+        prefs.edit {
+            putBoolean(DEPRECATED_PROVIDER, with)
+        }
+
+        deprecatedProvider = with
+        settings = settings.copy(deprecatedProvider = with)
     }
 
     fun updateNotify(with: Boolean) {
@@ -226,6 +298,7 @@ class PreferencesViewModel(private val application: Application) : ViewModel() {
             putBoolean(NOTIFY, with)
         }
         notify = with
+        settings = settings.copy(notify = with)
 
         if (with) {
             scheduleRepeatReceiver(notifyPer)
@@ -239,6 +312,7 @@ class PreferencesViewModel(private val application: Application) : ViewModel() {
             putString(NOTIFY_PER, with.toString())
         }
         notifyPer = with
+        settings = settings.copy(notifyPer = with)
 
         if (notify) {
             scheduleRepeatReceiver(with)
@@ -251,6 +325,7 @@ class PreferencesViewModel(private val application: Application) : ViewModel() {
         }
 
         useCustomFolder = with
+        settings = settings.copy(useCustomFolder = with)
     }
 
     fun updateCustomFolderPath(with: String) {
@@ -259,6 +334,7 @@ class PreferencesViewModel(private val application: Application) : ViewModel() {
         }
 
         customFolderPath = with
+        settings = settings.copy(customFolderPath = with)
     }
 
     fun updateDynamicColors(with: Boolean) {
@@ -267,6 +343,7 @@ class PreferencesViewModel(private val application: Application) : ViewModel() {
         }
 
         dynamicColors = with
+        settings = settings.copy(dynamicColors = with)
     }
 
     override fun onCleared() = database.close()

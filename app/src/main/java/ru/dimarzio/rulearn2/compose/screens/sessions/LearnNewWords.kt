@@ -19,6 +19,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import ru.dimarzio.rulearn2.compose.SessionContainer
 import ru.dimarzio.rulearn2.compose.screens.sessions.tests.GuessingTest
@@ -31,7 +32,9 @@ import ru.dimarzio.rulearn2.utils.navigate
 import ru.dimarzio.rulearn2.utils.navigateCleaning
 import ru.dimarzio.rulearn2.utils.play
 import ru.dimarzio.rulearn2.viewmodels.ErrorHandler
+import ru.dimarzio.rulearn2.viewmodels.PreferencesViewModel
 import ru.dimarzio.rulearn2.viewmodels.WordViewModel
+import ru.dimarzio.rulearn2.viewmodels.sessions.SessionWord
 import ru.dimarzio.rulearn2.viewmodels.sessions.tests.GuessingTestViewModel
 import ru.dimarzio.rulearn2.viewmodels.sessions.tests.NewWordViewModel
 import ru.dimarzio.rulearn2.viewmodels.sessions.tests.TypingTestViewModel
@@ -48,23 +51,18 @@ fun LearnNewWords(
     onWordUpdated: (Int, Word?, Word) -> Unit,
     currentId: Int,
     currentWord: Word,
+    navigationEvents: Flow<Pair<String, SessionWord>>,
     handler: ErrorHandler,
     getWord: (Int) -> Word?,
     onSettingsActionClick: () -> Unit,
     courseWords: Map<Int, Word>,
     otherLevels: Set<String>,
-    similarWords: Boolean,
-    skippedWords: Boolean,
     onNavigationIconClick: () -> Unit,
     progress: Float,
-    useTts: Boolean,
-    papasHints: Boolean,
     model: TFLiteModel?,
     onAnswer: (Boolean, Int) -> Unit,
     onRefreshRequested: () -> Unit,
-    ended: Boolean,
-    hidden: Boolean,
-    hide: (Boolean) -> Unit
+    ended: Boolean
 ) {
     val scaffoldState = rememberBottomSheetScaffoldState()
     val navController = rememberNavController()
@@ -90,7 +88,7 @@ fun LearnNewWords(
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = SessionRoutes.GuessingTest.route,
+            startDestination = SessionRoutes.NewWord.route,
             modifier = Modifier.padding(innerPadding),
             enterTransition = { EnterTransition.None },
             exitTransition = { ExitTransition.None }
@@ -98,16 +96,8 @@ fun LearnNewWords(
             composable(SessionRoutes.NewWord.route) {
                 val newWordViewModel = viewModel<NewWordViewModel>()
 
-                LaunchedEffect(key1 = currentWord, key2 = currentId) {
-                    if (!ended) {
-                        if (currentWord.rating in 1..8) {
-                            navController.navigateCleaning(SessionRoutes.GuessingTest.route)
-                        } else if (currentWord.rating == 9) {
-                            navController.navigateCleaning(SessionRoutes.TypingTest.route)
-                        }
-
-                        hide(false)
-                    }
+                LaunchedEffect(Unit) {
+                    navigationEvents.collect { (route, _) -> navController.navigateCleaning(route) }
                 }
 
                 NewWord(
@@ -127,7 +117,6 @@ fun LearnNewWords(
                         onWordUpdated(currentId, currentWord, currentWord.copy(difficult = it))
                     },
                     ended = ended,
-                    hidden = hidden,
                     onContinueClick = {
                         newWordViewModel.next(context, player, tts, locale, currentWord)
                         onWordUpdated(currentId, currentWord, currentWord.copy(rating = 1))
@@ -145,31 +134,18 @@ fun LearnNewWords(
                     }
                 )
 
-                LaunchedEffect(key1 = currentWord, key2 = currentId) {
-                    if (!ended) {
-                        when (currentWord.rating) {
-                            0 -> {
-                                navController.navigateCleaning(SessionRoutes.NewWord.route)
-                                hide(false)
-                            }
-
-                            in 1..8 -> {
-                                guessingTestViewModel.reverse()
-                                hide(false)
-
-                                guessingTestViewModel.generateTranslations(
-                                    id = currentId,
-                                    word = currentWord,
-                                    courseWords = courseWords,
-                                    similarWords = similarWords,
-                                    skippedWords = skippedWords
-                                )
-                            }
-
-                            9 -> {
-                                navController.navigateCleaning(SessionRoutes.TypingTest.route)
-                                hide(false)
-                            }
+                LaunchedEffect(Unit) {
+                    guessingTestViewModel.generateTranslations(currentId, currentWord, courseWords)
+                    navigationEvents.collect { (route, word) ->
+                        if (route == SessionRoutes.GuessingTest.route) {
+                            guessingTestViewModel.reverse()
+                            guessingTestViewModel.generateTranslations(
+                                id = word.getId(),
+                                word = word.getWord(),
+                                courseWords = courseWords,
+                            )
+                        } else {
+                            navController.navigateCleaning(route)
                         }
                     }
                 }
@@ -192,12 +168,11 @@ fun LearnNewWords(
                     translations = guessingTestViewModel.translations,
                     getWord = getWord,
                     ended = ended,
-                    hidden = hidden,
                     onAnswer = { clicked ->
                         guessingTestViewModel.answer(
                             context = context,
                             player = player,
-                            tts = tts.takeIf { useTts },
+                            tts = tts.takeIf { PreferencesViewModel.settings.tts },
                             locale = locale,
                             correctId = currentId,
                             correctWord = currentWord,
@@ -217,23 +192,13 @@ fun LearnNewWords(
             composable(SessionRoutes.TypingTest.route) {
                 val typingTestViewModel = viewModel<TypingTestViewModel>()
 
-                LaunchedEffect(key1 = currentWord, key2 = currentId) {
-                    if (!ended) {
-                        when (currentWord.rating) {
-                            0 -> {
-                                navController.navigateCleaning(SessionRoutes.NewWord.route)
-                            }
-
-                            in 1..8 -> {
-                                navController.navigateCleaning(SessionRoutes.GuessingTest.route)
-                            }
-
-                            9 -> {
-                                typingTestViewModel.reset()
-                            }
+                LaunchedEffect(Unit) {
+                    navigationEvents.collect { (route, _) ->
+                        if (route == SessionRoutes.TypingTest.route) {
+                            typingTestViewModel.reset()
+                        } else {
+                            navController.navigateCleaning(route)
                         }
-
-                        hide(false)
                     }
                 }
 
@@ -256,7 +221,7 @@ fun LearnNewWords(
                             typingTestViewModel.type(
                                 context = context,
                                 player = player,
-                                tts = tts.takeIf { useTts },
+                                tts = tts.takeIf { PreferencesViewModel.settings.tts },
                                 locale = locale,
                                 correct = currentWord,
                                 value = value,
@@ -272,9 +237,8 @@ fun LearnNewWords(
                             typingTestViewModel.takeHint(
                                 context = context,
                                 player = player,
-                                tts = tts.takeIf { useTts },
+                                tts = tts.takeIf { PreferencesViewModel.settings.tts },
                                 locale = locale,
-                                papasHints = papasHints,
                                 correct = currentWord,
                                 onRefreshRequested = onRefreshRequested
                             )
@@ -288,7 +252,7 @@ fun LearnNewWords(
                         typingTestViewModel.answer(
                             context = context,
                             player = player,
-                            tts = tts.takeIf { useTts },
+                            tts = tts.takeIf { PreferencesViewModel.settings.tts },
                             locale = locale,
                             word = currentWord,
                             correct = false,
@@ -296,8 +260,7 @@ fun LearnNewWords(
                         )
                         onAnswer(false, typingTestViewModel.hintsUsed)
                     },
-                    maxRating = 10,
-                    hidden = hidden
+                    maxRating = 10
                 )
             }
 

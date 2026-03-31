@@ -11,11 +11,7 @@ class CourseModel(
     private val interpreter = Interpreter(File(folder, "$course.tflite"))
 
     override fun predict(contexts: List<Features>): FloatArray {
-        val input = Array(contexts.size) { i ->
-            with(contexts[i]) {
-                provider.provide(id, repetitions, rating, secondsLapsed, typeRepeat, hintsUsed)
-            }
-        }
+        val input = Array(contexts.size) { i -> provider.provide(contexts[i]) }
 
         val output = Array(contexts.size) { FloatArray(1) }
         interpreter.run(input, output)

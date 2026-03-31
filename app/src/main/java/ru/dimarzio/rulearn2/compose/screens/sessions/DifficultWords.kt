@@ -19,6 +19,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import ru.dimarzio.rulearn2.compose.SessionContainer
 import ru.dimarzio.rulearn2.compose.screens.sessions.tests.GuessingTest
@@ -30,10 +31,11 @@ import ru.dimarzio.rulearn2.utils.navigate
 import ru.dimarzio.rulearn2.utils.navigateCleaning
 import ru.dimarzio.rulearn2.utils.play
 import ru.dimarzio.rulearn2.viewmodels.ErrorHandler
+import ru.dimarzio.rulearn2.viewmodels.PreferencesViewModel
 import ru.dimarzio.rulearn2.viewmodels.WordViewModel
+import ru.dimarzio.rulearn2.viewmodels.sessions.SessionWord
 import ru.dimarzio.rulearn2.viewmodels.sessions.difficult.DifficultState
 import ru.dimarzio.rulearn2.viewmodels.sessions.difficult.NoneState
-import ru.dimarzio.rulearn2.viewmodels.sessions.difficult.TypingState
 import ru.dimarzio.rulearn2.viewmodels.sessions.tests.GuessingTestViewModel
 import ru.dimarzio.rulearn2.viewmodels.sessions.tests.TypingTestViewModel
 import java.util.Locale
@@ -51,22 +53,17 @@ fun DifficultWords(
     currentId: Int,
     currentWord: Word,
     currentState: DifficultState,
+    navigationEvents: Flow<Pair<String, SessionWord>>,
     getWord: (Int) -> Word?,
     onSettingsActionClick: () -> Unit,
     courseWords: Map<Int, Word>,
     otherLevels: Set<String>,
     handler: ErrorHandler,
-    similarWords: Boolean,
-    skippedWords: Boolean,
     onNavigationIconClick: () -> Unit,
     progress: Float,
-    useTts: Boolean,
-    papasHints: Boolean,
     onAnswer: (Boolean, Int) -> Unit,
     onRefreshRequested: () -> Unit,
-    ended: Boolean,
-    hidden: Boolean,
-    hide: (Boolean) -> Unit
+    ended: Boolean
 ) {
     val scaffoldState = rememberBottomSheetScaffoldState()
     val navController = rememberNavController()
@@ -92,7 +89,7 @@ fun DifficultWords(
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = SessionRoutes.GuessingTest.route,
+            startDestination = SessionRoutes.TypingTest.route, // NoneState
             modifier = Modifier.padding(innerPadding),
             enterTransition = { EnterTransition.None },
             exitTransition = { ExitTransition.None }
@@ -154,21 +151,19 @@ fun DifficultWords(
                     }
                 )
 
-                LaunchedEffect(key1 = currentWord, key2 = currentState, key3 = currentId) {
-                    if (currentState == NoneState || currentState == TypingState) {
-                        navController.navigateCleaning(SessionRoutes.TypingTest.route)
-                        hide(false)
-                    } else {
-                        guessingTestViewModel.reverse()
-                        hide(false)
-
-                        guessingTestViewModel.generateTranslations(
-                            id = currentId,
-                            word = currentWord,
-                            courseWords = courseWords,
-                            similarWords = similarWords,
-                            skippedWords = skippedWords
-                        )
+                LaunchedEffect(Unit) {
+                    guessingTestViewModel.generateTranslations(currentId, currentWord, courseWords)
+                    navigationEvents.collect { (route, word) ->
+                        if (route == SessionRoutes.GuessingTest.route) {
+                            guessingTestViewModel.reverse()
+                            guessingTestViewModel.generateTranslations(
+                                id = word.getId(),
+                                word = word.getWord(),
+                                courseWords = courseWords
+                            )
+                        } else {
+                            navController.navigateCleaning(route)
+                        }
                     }
                 }
 
@@ -192,12 +187,11 @@ fun DifficultWords(
                     translations = guessingTestViewModel.translations,
                     getWord = getWord,
                     ended = ended,
-                    hidden = hidden,
                     onAnswer = { clicked ->
                         guessingTestViewModel.answer(
                             context = context,
                             player = player,
-                            tts = tts.takeIf { useTts },
+                            tts = tts.takeIf { PreferencesViewModel.settings.tts },
                             locale = locale,
                             correctId = currentId,
                             correctWord = currentWord,
@@ -215,14 +209,13 @@ fun DifficultWords(
 
             composable(SessionRoutes.TypingTest.route) {
                 val typingTestViewModel = viewModel<TypingTestViewModel>()
-
-                LaunchedEffect(key1 = currentWord, key2 = currentState, key3 = currentId) {
-                    if (currentState == NoneState || currentState == TypingState) {
-                        typingTestViewModel.reset()
-                        hide(false)
-                    } else {
-                        navController.navigateCleaning(SessionRoutes.GuessingTest.route)
-                        hide(false)
+                LaunchedEffect(Unit) {
+                    navigationEvents.collect { (route, _) ->
+                        if (route == SessionRoutes.TypingTest.route) {
+                            typingTestViewModel.reset()
+                        } else {
+                            navController.navigateCleaning(route)
+                        }
                     }
                 }
 
@@ -247,7 +240,7 @@ fun DifficultWords(
                             typingTestViewModel.type(
                                 context = context,
                                 player = player,
-                                tts = tts.takeIf { useTts },
+                                tts = tts.takeIf { PreferencesViewModel.settings.tts },
                                 locale = locale,
                                 correct = currentWord,
                                 value = value,
@@ -263,9 +256,8 @@ fun DifficultWords(
                             typingTestViewModel.takeHint(
                                 context = context,
                                 player = player,
-                                tts = tts.takeIf { useTts },
+                                tts = tts.takeIf { PreferencesViewModel.settings.tts },
                                 locale = locale,
-                                papasHints = papasHints,
                                 correct = currentWord,
                                 onRefreshRequested = onRefreshRequested
                             )
@@ -280,7 +272,7 @@ fun DifficultWords(
                             typingTestViewModel.answer(
                                 context = context,
                                 player = player,
-                                tts = tts.takeIf { useTts },
+                                tts = tts.takeIf { PreferencesViewModel.settings.tts },
                                 locale = locale,
                                 word = currentWord,
                                 correct = false,
@@ -288,8 +280,7 @@ fun DifficultWords(
                             )
                             onAnswer(false, typingTestViewModel.hintsUsed)
                         }
-                    },
-                    hidden = hidden
+                    }
                 )
             }
         }

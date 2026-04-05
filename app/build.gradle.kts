@@ -12,8 +12,8 @@ android {
         applicationId = "ru.dimarzio.rulearn2"
         minSdk = 26
         targetSdk = 35
-        versionCode = 31
-        versionName = "2.7.5-EDGE"
+        versionCode = 32
+        versionName = "2.8.0-DEV"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -65,6 +65,7 @@ dependencies {
     implementation(libs.kotlin.csv.jvm)
     implementation(libs.commons.text)
     implementation(libs.tensorflow.lite)
+    implementation(libs.tensorflow.lite.select.tf.ops)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

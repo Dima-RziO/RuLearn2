@@ -4,15 +4,10 @@ import ru.dimarzio.rulearn2.tflite.Features
 import ru.dimarzio.rulearn2.utils.normalized
 import ru.dimarzio.rulearn2.viewmodels.PreferencesViewModel.Session
 import java.io.File
-import java.time.Instant
-import java.time.LocalTime
-import java.time.ZoneId
-import kotlin.math.abs
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 
 data class Word( // Kotlin Prototype
     // Map<K, V> value
@@ -28,7 +23,7 @@ data class Word( // Kotlin Prototype
     val correctAnswers: Int, // sum_correct
     val secondsLapsed: Long, // s_lapsed
     val typeRepeat: Session?,
-    val hintsUsed: Int, // n_hint
+    val hintsFraction: Float, // hint_frac
     val successRate: Float
 ) {
     private val Double.months get() = times(30).days
@@ -95,7 +90,7 @@ data class Word( // Kotlin Prototype
         correctAnswers = 0,
         secondsLapsed = 0L,
         typeRepeat = null,
-        hintsUsed = 0,
+        hintsFraction = 0f,
         successRate = 1f
     )
 
@@ -113,7 +108,7 @@ data class Word( // Kotlin Prototype
         correctAnswers = 0,
         secondsLapsed = 0L,
         typeRepeat = null,
-        hintsUsed = 0,
+        hintsFraction = 0f,
         successRate = successRate
     )
 
@@ -124,6 +119,6 @@ data class Word( // Kotlin Prototype
         rating = rating,
         secondsLapsed = secondsLapsed,
         typeRepeat = typeRepeat,
-        hintsUsed = hintsUsed
+        hintsFraction = hintsFraction
     )
 }

@@ -80,7 +80,8 @@ fun Course(
     course: String,
     onNavigationIconClick: () -> Unit,
     onAddActionClick: (String) -> Unit,
-    model: String?,
+    model: String,
+    modelLoaded: Boolean,
     loss: Loss,
     onTrainActionClick: () -> Unit,
     filterRepeat: Boolean,
@@ -151,6 +152,7 @@ fun Course(
                 onNavigationIconClick = onNavigationIconClick,
                 onAddActionClick = onAddActionClick,
                 model = model,
+                modelLoaded = modelLoaded,
                 loss = loss,
                 onTrainActionClick = onTrainActionClick,
                 filterRepeat = filterRepeat,
@@ -333,7 +335,8 @@ private fun AppBar(
     onSearch: () -> Unit,
     onNavigationIconClick: () -> Unit,
     onAddActionClick: (String) -> Unit,
-    model: String?,
+    model: String,
+    modelLoaded: Boolean,
     loss: Loss,
     onTrainActionClick: () -> Unit,
     filterRepeat: Boolean,
@@ -376,6 +379,7 @@ private fun AppBar(
                                 expanded = expanded,
                                 onAddActionClick = onAddActionClick,
                                 model = model,
+                                modelLoaded = modelLoaded,
                                 loss = loss,
                                 onTrainActionClick = onTrainActionClick,
                                 filterRepeat = filterRepeat,
@@ -394,7 +398,7 @@ private fun AppBar(
                     placeholder = {
                         Text(
                             text = course,
-                            fontStyle = if (model != null) {
+                            fontStyle = if (modelLoaded) {
                                 FontStyle.Italic
                             } else {
                                 FontStyle.Normal
@@ -455,7 +459,6 @@ private fun TFLiteDialog(
         onDismissRequest = onDismissRequest,
         confirmButton = {
             TextButton(
-                enabled = false, // TODO
                 onClick = {
                     onDismissRequest()
                     onConfirmation()
@@ -535,7 +538,8 @@ private fun FilterDialog(
 private fun TopBarActions(
     expanded: Boolean,
     onAddActionClick: (String) -> Unit,
-    model: String?,
+    model: String,
+    modelLoaded: Boolean,
     loss: Loss,
     onTrainActionClick: () -> Unit,
     filterRepeat: Boolean,
@@ -567,7 +571,7 @@ private fun TopBarActions(
         TFLiteDialog(
             onDismissRequest = { showTFLiteDialog = false },
             onConfirmation = onTrainActionClick,
-            model = model!!,
+            model = model,
             loss = loss
         )
     }
@@ -605,7 +609,7 @@ private fun TopBarActions(
         AppBarActions(
             Triple(Icons.Filled.Add, "Add level") { showAddDialog = true },
             Triple(trainIcon, "Train model") {
-                if (model != null) {
+                if (modelLoaded) {
                     showTFLiteDialog = true
                 } else {
                     context.toast("Model is not loaded.")

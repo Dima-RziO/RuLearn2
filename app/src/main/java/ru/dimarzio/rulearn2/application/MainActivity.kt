@@ -44,8 +44,8 @@ import ru.dimarzio.rulearn2.compose.screens.Courses
 import ru.dimarzio.rulearn2.compose.screens.Level
 import ru.dimarzio.rulearn2.compose.screens.Settings
 import ru.dimarzio.rulearn2.compose.screens.Word
-import ru.dimarzio.rulearn2.compose.screens.sessions.GuessingReview
 import ru.dimarzio.rulearn2.compose.screens.sessions.DifficultWords
+import ru.dimarzio.rulearn2.compose.screens.sessions.GuessingReview
 import ru.dimarzio.rulearn2.compose.screens.sessions.LearnNewWords
 import ru.dimarzio.rulearn2.compose.screens.sessions.TypingReview
 import ru.dimarzio.rulearn2.routes.MainRoutes
@@ -79,7 +79,6 @@ import ru.dimarzio.rulearn2.viewmodels.sessions.difficult.DifficultWordAdapter
     * GoF Adapter
     * GoF Bridge
     * GoF Composite
-    * GoF Decorator
     * GoF Facade
     * GoF Flyweight
     * GoF Proxy
@@ -93,6 +92,7 @@ import ru.dimarzio.rulearn2.viewmodels.sessions.difficult.DifficultWordAdapter
     * Kotlin Prototype
     * Kotlin Singleton
     * Kotlin Flows
+    * Kotlin Coroutines
     *
     * Compose States
     * MVVM
@@ -304,9 +304,10 @@ fun CourseRoute(
         onAddActionClick = { level ->
             navController.navigate(MainRoutes.Level.route, "level" to level)
         },
-        model = courseViewModel.model?.getName(),
+        model = courseViewModel.model?.getName().toString(),
+        modelLoaded = courseViewModel.model?.isLoaded() == true,
         loss = courseViewModel.loss,
-        onTrainActionClick = { }, // TODO
+        onTrainActionClick = courseViewModel::train,
         filterRepeat = courseViewModel.filterRepeat,
         filterNotRepeat = courseViewModel.filterNotRepeat,
         filterDifficult = courseViewModel.filterDifficult,
@@ -504,7 +505,7 @@ fun GuessingReviewRoute(
     val context = LocalContext.current
 
     if (courseViewModel != null) {
-        val courseWords by  courseViewModel.words.collectAsState()
+        val courseWords by courseViewModel.words.collectAsState()
         val reviewViewModel = viewModel<ReviewViewModel>(
             factory = viewModelFactory {
                 addInitializer(ReviewViewModel::class) {
@@ -841,7 +842,11 @@ fun DifficultWordsRoute(
                     if (new != null) {
                         levelViewModel?.updateWord(difficultWord.id, new)
                         courseViewModel.updateWord(difficultWord.id, new)
-                        coursesViewModel?.updateCourse(courseViewModel.course, difficultWord.word, new)
+                        coursesViewModel?.updateCourse(
+                            courseViewModel.course,
+                            difficultWord.word,
+                            new
+                        )
                     }
                 },
                 onRefreshRequested = difficultWordsViewModel::next,

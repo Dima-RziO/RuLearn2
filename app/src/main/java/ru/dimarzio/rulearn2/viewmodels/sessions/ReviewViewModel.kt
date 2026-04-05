@@ -30,6 +30,7 @@ open class ReviewViewModel(
         val rating = word.rating
         val repetitions = word.repetitions
         val correctAnswers = word.correctAnswers
+        val hintsFraction = hintsUsed.toFloat() / word.name.length
         val secondsLapsed = if (word.accessed != 0L) {
             (newAccessed - word.accessed) / 1000
         } else {
@@ -45,7 +46,7 @@ open class ReviewViewModel(
             rating = rating,
             secondsLapsed = secondsLapsed,
             typeRepeat = type,
-            hintsUsed = hintsUsed
+            hintsFraction = hintsFraction
         )
 
         return prototype.clone(
@@ -65,7 +66,7 @@ open class ReviewViewModel(
                 },
                 secondsLapsed = secondsLapsed,
                 typeRepeat = type,
-                hintsUsed = hintsUsed,
+                hintsFraction = hintsFraction,
                 successRate = model?.predict(features) ?: 1f
             )
         )

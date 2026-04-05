@@ -33,6 +33,6 @@ object ModelFactory { // Kotlin Singleton, Flyweight factory
     }
 
     fun isLoaded(course: String): Boolean {
-        return course in models
+        return models[course]?.isLoaded() == true
     }
 }

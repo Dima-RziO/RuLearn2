@@ -164,7 +164,7 @@ class Database(private val folder: File) : AutoCloseable { // Not singleton!
                 "cur_rating INTEGER DEFAULT 0",
                 "s_lapsed INTEGER DEFAULT 0",
                 "type_repeat INTEGER",
-                "n_hint INTEGER DEFAULT 0"
+                "hint_frac REAL DEFAULT 0.0"
             )
         }
 
@@ -232,7 +232,7 @@ class Database(private val folder: File) : AutoCloseable { // Not singleton!
                 "cur_rating" to line[3].toIntOrNull(),
                 "s_lapsed" to line[4].toIntOrNull(),
                 "type_repeat" to line[5].toIntOrNull(),
-                "n_hint" to line[6].toIntOrNull()
+                "hint_frac" to line[6].toFloatOrNull()
             )
 
             else -> mapOf(
@@ -250,7 +250,7 @@ class Database(private val folder: File) : AutoCloseable { // Not singleton!
     fun exportTable(course: String): List<List<String?>> {
         val columns = "'$course'.id, word, translation, audio, level"
         val columnsStat = "id, accessed, skip, difficult, rating, success_rate"
-        val columnsMl = "id, n_repeat, sum_correct, cur_rating, s_lapsed, type_repeat, n_hint"
+        val columnsMl = "id, n_repeat, sum_correct, cur_rating, s_lapsed, type_repeat, hint_frac"
 
         return query(
             when {
@@ -287,7 +287,7 @@ class Database(private val folder: File) : AutoCloseable { // Not singleton!
 
         val columns = "'$course'.id, word, translation, audio, level"
         val columnsStat = "accessed, skip, difficult, rating, success_rate"
-        val columnsMl = "n_repeat, sum_correct, s_lapsed, type_repeat, n_hint"
+        val columnsMl = "n_repeat, sum_correct, s_lapsed, type_repeat, hint_frac"
 
         return buildMap {
             query(
@@ -322,7 +322,7 @@ class Database(private val folder: File) : AutoCloseable { // Not singleton!
                         typeRepeat = Session
                             .entries
                             .getOrNull(getIntOrNull(13) ?: -1),
-                        hintsUsed = getInt(14),
+                        hintsFraction = getFloat(14),
                         successRate = getFloat(9)
                     )
                 }
@@ -338,7 +338,7 @@ class Database(private val folder: File) : AutoCloseable { // Not singleton!
 
         val columns = "'$course'.id, word, translation, audio, level"
         val columnsStat = "accessed, skip, difficult, rating"
-        val columnsMl = "'$ml'.n_repeat, '$ml'.sum_correct, s_lapsed, type_repeat, n_hint"
+        val columnsMl = "'$ml'.n_repeat, '$ml'.sum_correct, s_lapsed, type_repeat, hint_frac"
 
         val words = buildMap {
             query(
@@ -373,7 +373,7 @@ class Database(private val folder: File) : AutoCloseable { // Not singleton!
                         typeRepeat = Session
                             .entries
                             .getOrNull(getIntOrNull(12) ?: -1),
-                        hintsUsed = getInt(13),
+                        hintsFraction = getFloat(13),
                         successRate = 1f
                     )
                 }
@@ -432,7 +432,7 @@ class Database(private val folder: File) : AutoCloseable { // Not singleton!
                 "cur_rating" to word.rating,
                 "s_lapsed" to word.secondsLapsed,
                 "type_repeat" to word.typeRepeat?.ordinal,
-                "n_hint" to word.hintsUsed
+                "hint_frac" to word.hintsFraction
             ),
             whereClause = "id = $id"
         )
@@ -478,7 +478,7 @@ class Database(private val folder: File) : AutoCloseable { // Not singleton!
             "cur_rating INTEGER DEFAULT 0",
             "s_lapsed INTEGER DEFAULT 0",
             "type_repeat INTEGER",
-            "n_hint INTEGER DEFAULT 0"
+            "hint_frac INTEGER DEFAULT 0"
         )
 
         database.execSQL("INSERT INTO $master.'$ml' SELECT * FROM $slave.'$ml'")

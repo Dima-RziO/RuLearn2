@@ -12,6 +12,6 @@ class StandardProvider : FeaturesProvider {
         ln(features.secondsLapsed.toDouble() + 1).toFloat(), // log__s_lapsed
         features.id.toFloat(), // remainder__id
         features.rating.toFloat(), // remainder__cur_rating
-        features.hintsUsed.toFloat() // remainder__n_hint
+        features.hintsFraction // remainder__hint_frac
     )
 }

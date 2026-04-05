@@ -9,5 +9,5 @@ data class Features( // Flyweight context
     val rating: Int,
     val secondsLapsed: Long,
     val typeRepeat: Session?,
-    val hintsUsed: Int
+    val hintsFraction: Float
 )

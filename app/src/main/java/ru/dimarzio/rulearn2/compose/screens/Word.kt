@@ -45,6 +45,7 @@ import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -214,9 +215,15 @@ fun Word(
                         onRepetitionsChange = { onWordUpdated(word.copy(repetitions = it)) }
                     )
 
+                    var hintsUsed by remember {
+                        mutableIntStateOf((word.hintsFraction * word.name.length).toInt())
+                    }
                     HintsPicker(
-                        hintsUsed = word.hintsUsed,
-                        onHintsUsedChange = { onWordUpdated(word.copy(hintsUsed = it)) }
+                        hintsUsed = hintsUsed,
+                        onHintsUsedChange = { hints ->
+                            hintsUsed = hints
+                            onWordUpdated(word.copy(hintsFraction = hints.toFloat() / word.name.length))
+                        }
                     )
                 }
 

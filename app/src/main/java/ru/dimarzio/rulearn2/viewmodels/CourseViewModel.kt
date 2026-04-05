@@ -371,6 +371,10 @@ class CourseViewModel(
         }
     }
 
+    fun train() {
+        model?.train(_words.value.map { (id, word) -> word.toFeatures(id) })
+    }
+
     override fun onCleared() {
         ModelFactory.removeModel(course)
     }

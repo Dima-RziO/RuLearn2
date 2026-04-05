@@ -43,7 +43,7 @@ class LearnWordsViewModel(
                     0L
                 },
                 typeRepeat = Session.LearnNewWords,
-                hintsUsed = hintsUsed
+                hintsFraction = hintsUsed.toFloat() / word.name.length
             )
         )
     }

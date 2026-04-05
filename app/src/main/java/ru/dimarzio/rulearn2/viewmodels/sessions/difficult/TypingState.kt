@@ -18,6 +18,7 @@ object TypingState : DifficultState() {
                 val correctAnswers = context.word.correctAnswers
                 val rating = context.word.rating.inc().coerceIn(0..Word.MAX_RATING)
                 val typeRepeat = PreferencesViewModel.Session.DifficultWords
+                val hintsFraction = hints.toFloat() / context.word.name.length
                 val secondsLapsed = if (context.word.accessed != 0L) {
                     (newAccessed - context.word.accessed) / 1000
                 } else {
@@ -31,7 +32,7 @@ object TypingState : DifficultState() {
                     rating = rating,
                     secondsLapsed = secondsLapsed,
                     typeRepeat = typeRepeat,
-                    hintsUsed = hints
+                    hintsFraction = hintsFraction
                 )
 
                 context.word.copy(
@@ -42,7 +43,7 @@ object TypingState : DifficultState() {
                     correctAnswers = correctAnswers,
                     secondsLapsed = secondsLapsed,
                     typeRepeat = typeRepeat,
-                    hintsUsed = hints,
+                    hintsFraction = hintsFraction,
                     successRate = model?.predict(features) ?: 1f
                 )
             } else {

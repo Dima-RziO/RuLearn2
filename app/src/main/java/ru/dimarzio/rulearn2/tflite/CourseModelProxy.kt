@@ -35,8 +35,16 @@ class CourseModelProxy( // GoF Proxy
         }
     }
 
+    override fun train(contexts: List<Features>) {
+        model?.train(contexts) ?: error("Model is not loaded.")
+    }
+
     override fun getName(): String {
         return model?.getName().toString()
+    }
+
+    override fun isLoaded(): Boolean {
+        return model?.isLoaded() ?: false
     }
 
     override fun close() {

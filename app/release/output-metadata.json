@@ -11,8 +11,8 @@
       "type": "SINGLE",
       "filters": [],
       "attributes": [],
-      "versionCode": 31,
-      "versionName": "2.7.5-EDGE",
+      "versionCode": 32,
+      "versionName": "2.8.0-DEV",
       "outputFile": "app-release.apk"
     }
   ],

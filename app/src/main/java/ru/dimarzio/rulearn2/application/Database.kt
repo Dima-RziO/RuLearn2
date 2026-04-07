@@ -1,6 +1,7 @@
 package ru.dimarzio.rulearn2.application
 
 import android.content.ContentValues
+import android.content.res.AssetManager
 import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import androidx.core.database.getIntOrNull
@@ -330,8 +331,8 @@ class Database(private val folder: File) : AutoCloseable { // Not singleton!
         }
     }
 
-    fun getTFLiteWords(course: String): Map<Int, Word> {
-        val model = models.getModel(course, File(folder, "tflite/"))
+    fun getTFLiteWords(course: String, assets: AssetManager): Map<Int, Word> {
+        val model = models.getModel(course, File(folder, "tflite/"), assets)
 
         val stat = course + "_stat"
         val ml = course + "_ml"

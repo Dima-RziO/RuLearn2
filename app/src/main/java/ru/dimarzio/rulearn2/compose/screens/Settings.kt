@@ -40,6 +40,8 @@ fun Settings(
     onAllowMLChange: (Boolean) -> Unit,
     calculateSuccessRate: Boolean,
     onCalculateSuccessRateChange: (Boolean) -> Unit,
+    defaultModel: Boolean,
+    onDefaultModelChange: (Boolean) -> Unit,
     deprecatedProvider: Boolean,
     onDeprecatedProviderChange: (Boolean) -> Unit,
     notify: Boolean,
@@ -131,7 +133,15 @@ fun Settings(
                     summary = "Evaluate success_rate as sum_correct / n_repeat if TFLite model is not loaded",
                     checked = calculateSuccessRate,
                     onCheckedChange = onCalculateSuccessRateChange,
-                    enabled = allowML
+                    enabled = allowML && !defaultModel
+                )
+
+                SwitchPreference(
+                    title = "Use default model",
+                    summary = "Use the default model if others are not available",
+                    checked = defaultModel,
+                    onCheckedChange = onDefaultModelChange,
+                    enabled = allowML && !calculateSuccessRate
                 )
 
                 SwitchPreference(

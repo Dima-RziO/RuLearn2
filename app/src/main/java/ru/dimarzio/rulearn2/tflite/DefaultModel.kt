@@ -1,22 +1,27 @@
 package ru.dimarzio.rulearn2.tflite
 
+import android.content.res.AssetManager
 import org.tensorflow.lite.Interpreter
+import ru.dimarzio.rulearn2.viewmodels.PreferencesViewModel
 import java.io.File
+import java.io.FileInputStream
+import java.nio.channels.FileChannel
 
-class CourseModel(
-    private val course: String,
-    private val provider: FeaturesProvider,
-    folder: File
-) : TFLiteModel {
-    private val interpreter = Interpreter(File(folder, "$course.tflite"))
-    private val ckpt = File(folder, "$course.ckpt")
+class DefaultModel(private val provider: FeaturesProvider, assets: AssetManager) : TFLiteModel {
+    private val interpreter: Interpreter
 
     init {
-        if (ckpt.exists()) { // Restoring weights.
-            val inputs = mapOf("checkpoint_path" to ckpt.path)
-            runCatching {
-                interpreter.runSignature(inputs, emptyMap(), "restore")
-            }
+        val fileDescriptor = assets.openFd(getName())
+
+        FileInputStream(fileDescriptor.fileDescriptor).use { inputStream ->
+            val fileChannel = inputStream.channel
+            val buffer = fileChannel.map(
+                FileChannel.MapMode.READ_ONLY,
+                fileDescriptor.startOffset,
+                fileDescriptor.declaredLength
+            )
+
+            interpreter = Interpreter(buffer)
         }
     }
 
@@ -49,16 +54,26 @@ class CourseModel(
                     interpreter.runSignature(batchInputs, emptyMap(), "train")
                 }
             }
+        }
 
-            val saveInputs = mapOf("checkpoint_path" to ckpt.path)
-            interpreter.runSignature(saveInputs, emptyMap(), "save")
+        return result.isSuccess
+    }
+
+    fun save(to: File): Boolean {
+        val result = runCatching {
+            val inputs = mapOf("checkpoint_path" to to.path)
+            interpreter.runSignature(inputs, emptyMap(), "save")
         }
 
         return result.isSuccess
     }
 
     override fun getName(): String {
-        return "$course.tflite"
+        return if (!PreferencesViewModel.settings.deprecatedProvider) {
+            "default.tflite"
+        } else {
+            "default_deprecated.tflite"
+        }
     }
 
     override fun isLoaded(): Boolean {

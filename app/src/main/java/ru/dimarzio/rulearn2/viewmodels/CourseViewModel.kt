@@ -1,5 +1,6 @@
 package ru.dimarzio.rulearn2.viewmodels
 
+import android.content.res.AssetManager
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
@@ -17,6 +18,7 @@ import kotlinx.coroutines.withContext
 import ru.dimarzio.rulearn2.application.Database
 import ru.dimarzio.rulearn2.models.Level
 import ru.dimarzio.rulearn2.models.Word
+import ru.dimarzio.rulearn2.tflite.DefaultModel
 import ru.dimarzio.rulearn2.tflite.Loss
 import ru.dimarzio.rulearn2.tflite.ModelFactory
 import ru.dimarzio.rulearn2.utils.normalized
@@ -35,8 +37,9 @@ typealias Filter = (Boolean, Boolean, Boolean, Boolean, Boolean, Boolean, Boolea
 class CourseViewModel(
     private val database: Database,
     private val handler: ErrorHandler,
+    private val appFolder: File,
     val course: String,
-    appFolder: File,
+    assets: AssetManager,
     lifecycle: Lifecycle
 ) : ViewModel() {
     // SnapshotStateMap is impossible to use because it does not save the order.
@@ -116,7 +119,7 @@ class CourseViewModel(
     val locale = Locale(course.take(2))
 
     val model = if (PreferencesViewModel.settings.allowML) {
-        ModelFactory.getModel(course, File(appFolder, "tflite/"))
+        ModelFactory.getModel(course, File(appFolder, "tflite/"), assets)
     } else {
         null
     }
@@ -372,7 +375,13 @@ class CourseViewModel(
     }
 
     fun train() {
-        model?.train(_words.value.map { (id, word) -> word.toFeatures(id) })
+        val success = model?.train(_words.value.map { (id, word) -> word.toFeatures(id) })
+        if (model is DefaultModel && success == true) {
+            val ckpt = File("tflite", "$course.ckpt")
+            model.save(File(appFolder, ckpt.path))
+        } else if (success == false) {
+            handler.onMessageReceived("Error.")
+        }
     }
 
     override fun onCleared() {

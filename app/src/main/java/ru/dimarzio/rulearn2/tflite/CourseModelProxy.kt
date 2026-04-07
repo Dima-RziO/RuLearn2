@@ -9,9 +9,11 @@ class CourseModelProxy( // GoF Proxy
 ) : TFLiteModel {
     val model = runCatching { CourseModel(course, provider, folder) }.getOrNull()
 
-    override fun predict(contexts: List<Features>): FloatArray {
-        return if (model != null) {
-            model.predict(contexts)
+    override fun predict(contexts: List<Features>): FloatArray? {
+        val prediction = model?.predict(contexts)
+
+        return if (prediction != null) {
+            prediction
         } else {
             val labels = contexts.map { context ->
                 if (context.repetitions != 0 && context.correctAnswers != 0) {
@@ -25,18 +27,17 @@ class CourseModelProxy( // GoF Proxy
         }
     }
 
-    override fun predict(context: Features): Float {
-        return if (model != null) {
-            model.predict(context)
-        } else if (context.repetitions != 0 && context.correctAnswers != 0) {
+    override fun predict(context: Features): Float? {
+        val prediction = model?.predict(context)
+        return prediction ?: if (context.repetitions != 0 && context.correctAnswers != 0) {
             context.correctAnswers.toFloat() / context.repetitions
         } else {
             1f
         }
     }
 
-    override fun train(contexts: List<Features>) {
-        model?.train(contexts) ?: error("Model is not loaded.")
+    override fun train(contexts: List<Features>): Boolean {
+        return model?.train(contexts) == true
     }
 
     override fun getName(): String {

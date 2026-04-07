@@ -435,8 +435,9 @@ fun AboutDialog(onDismissRequest: () -> Unit) {
         text = {
             Text(
                 text = "Changelog:\n" +
-                        "• Early On-Device Training support\n" +
-                        "• n_hint replaced with hint_frac in _ml tables"
+                        "• Added default model setting\n" +
+                        "• Removed normalization from providers, models are expected to have built-in\n" +
+                        "• General bug fixes and other improvements"
             )
         }
     )

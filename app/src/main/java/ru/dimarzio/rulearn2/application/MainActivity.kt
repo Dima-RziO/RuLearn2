@@ -6,6 +6,7 @@ import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Intent
+import android.content.res.AssetManager
 import android.media.MediaPlayer
 import android.os.Build
 import android.os.Bundle
@@ -275,6 +276,7 @@ fun CourseRoute(
     lifecycle: Lifecycle,
     prefsViewModel: PreferencesViewModel,
     navController: NavController,
+    assets: AssetManager,
     handler: ErrorHandler
 ) {
     val coursesViewModel = navController.coursesViewModel()
@@ -282,11 +284,12 @@ fun CourseRoute(
         factory = viewModelFactory {
             addInitializer(CourseViewModel::class) {
                 CourseViewModel(
-                    prefsViewModel.database,
-                    handler,
-                    course,
-                    prefsViewModel.appFolder,
-                    lifecycle
+                    database = prefsViewModel.database,
+                    handler = handler,
+                    appFolder = prefsViewModel.appFolder,
+                    course = course,
+                    assets = assets,
+                    lifecycle = lifecycle
                 )
             }
         }
@@ -920,6 +923,8 @@ fun SettingsRoute(
         onAllowMLChange = prefsViewModel::updateAllowML,
         calculateSuccessRate = prefsViewModel.calculateSuccessRate,
         onCalculateSuccessRateChange = prefsViewModel::updateCalculate,
+        defaultModel = prefsViewModel.defaultModel,
+        onDefaultModelChange = prefsViewModel::updateDefaultModel,
         deprecatedProvider = prefsViewModel.deprecatedProvider,
         onDeprecatedProviderChange = prefsViewModel::updateDeprecated,
         onBackGestureChange = prefsViewModel::updateBackGesture,
@@ -1035,6 +1040,7 @@ fun MainScreen(
                     lifecycle = lifecycle,
                     prefsViewModel = preferencesViewModel,
                     navController = navController,
+                    assets = context.assets,
                     handler = handler
                 )
             }

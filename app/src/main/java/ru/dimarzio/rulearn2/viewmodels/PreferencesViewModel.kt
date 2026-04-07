@@ -50,6 +50,8 @@ class PreferencesViewModel(private val application: Application) : ViewModel() {
         private set
     var calculateSuccessRate by mutableStateOf(prefs.getBoolean(CALCULATE_RATIO, true))
         private set
+    var defaultModel by mutableStateOf(prefs.getBoolean(DEFAULT_MODEL, false))
+        private set
     var deprecatedProvider by mutableStateOf(prefs.getBoolean(DEPRECATED_PROVIDER, false))
         private set
 
@@ -115,6 +117,7 @@ class PreferencesViewModel(private val application: Application) : ViewModel() {
             backGesture = backGesture,
             allowML = allowML,
             calculateSuccessRate = calculateSuccessRate,
+            defaultModel = defaultModel,
             deprecatedProvider = deprecatedProvider,
             notify = notify,
             notifyPer = notifyPer,
@@ -145,6 +148,7 @@ class PreferencesViewModel(private val application: Application) : ViewModel() {
 
         private const val ALLOW_ML = "allow_machine_learning"
         private const val CALCULATE_RATIO = "calculate_success_rate"
+        private const val DEFAULT_MODEL = "default_model"
         private const val DEPRECATED_PROVIDER = "deprecated_provider"
 
         private const val NOTIFY = "notify"
@@ -177,6 +181,7 @@ class PreferencesViewModel(private val application: Application) : ViewModel() {
         val backGesture: Boolean,
         val allowML: Boolean,
         val calculateSuccessRate: Boolean,
+        val defaultModel: Boolean,
         val deprecatedProvider: Boolean,
         val notify: Boolean,
         val notifyPer: Duration,
@@ -282,6 +287,15 @@ class PreferencesViewModel(private val application: Application) : ViewModel() {
 
         calculateSuccessRate = with
         settings = settings.copy(calculateSuccessRate = with)
+    }
+
+    fun updateDefaultModel(with: Boolean) {
+        prefs.edit {
+            putBoolean(DEFAULT_MODEL, with)
+        }
+
+        defaultModel = with
+        settings = settings.copy(defaultModel = with)
     }
 
     fun updateDeprecated(with: Boolean) {

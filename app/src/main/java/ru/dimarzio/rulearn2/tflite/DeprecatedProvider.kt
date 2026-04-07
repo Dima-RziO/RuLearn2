@@ -1,7 +1,5 @@
 package ru.dimarzio.rulearn2.tflite
 
-import ru.dimarzio.rulearn2.viewmodels.PreferencesViewModel.Session
-
 class DeprecatedProvider : FeaturesProvider {
     override fun provide(features: Features) = floatArrayOf(
         features.id.toFloat(),

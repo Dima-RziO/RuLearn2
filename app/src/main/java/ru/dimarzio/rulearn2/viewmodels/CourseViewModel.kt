@@ -38,8 +38,8 @@ class CourseViewModel(
     private val database: Database,
     private val handler: ErrorHandler,
     private val appFolder: File,
+    private val assets: AssetManager,
     val course: String,
-    assets: AssetManager,
     lifecycle: Lifecycle
 ) : ViewModel() {
     // SnapshotStateMap is impossible to use because it does not save the order.
@@ -377,8 +377,15 @@ class CourseViewModel(
     fun train() {
         val success = model?.train(_words.value.map { (id, word) -> word.toFeatures(id) })
         if (model is DefaultModel && success == true) {
-            val ckpt = File("tflite", "$course.ckpt")
-            model.save(File(appFolder, ckpt.path))
+            val dir = File(appFolder, "tflite")
+            val ckpt = File(dir, "$course.ckpt")
+            val tflite = File(dir, "$course.tflite")
+
+            model.save(ckpt)
+
+            assets.open(model.getName()).use { `is` ->
+                tflite.outputStream().use { os -> `is`.copyTo(os) }
+            }
         } else if (success == false) {
             handler.onMessageReceived("Error.")
         }

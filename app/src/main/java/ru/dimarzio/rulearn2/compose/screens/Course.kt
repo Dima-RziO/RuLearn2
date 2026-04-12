@@ -64,6 +64,7 @@ import ru.dimarzio.rulearn2.compose.AboutDialog
 import ru.dimarzio.rulearn2.compose.AppBarActions
 import ru.dimarzio.rulearn2.compose.FilledHeader
 import ru.dimarzio.rulearn2.compose.GroupedMultiChoiceDialog
+import ru.dimarzio.rulearn2.compose.ProgressDialog
 import ru.dimarzio.rulearn2.compose.Sessions
 import ru.dimarzio.rulearn2.compose.SwipeToRevealBox
 import ru.dimarzio.rulearn2.compose.TextFieldDialog
@@ -83,6 +84,7 @@ fun Course(
     model: String,
     modelLoaded: Boolean,
     loss: Loss,
+    showTrainingIndicator: Boolean,
     onTrainActionClick: () -> Unit,
     filterRepeat: Boolean,
     filterNotRepeat: Boolean,
@@ -188,6 +190,14 @@ fun Course(
             )
         },
     ) { innerPadding ->
+        if (showTrainingIndicator) {
+            ProgressDialog(
+                title = "Training...",
+                message = "Please wait...",
+                onDismissRequest = {}
+            )
+        }
+
         val learnedNumber = words.count { (_, word) -> word.learned && !word.skip }
 
         val totalWords = words.count { (_, word) -> !word.skip }

@@ -7,8 +7,6 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import ru.dimarzio.rulearn2.models.Word
 import ru.dimarzio.rulearn2.utils.toMutableStateMap
-import kotlin.collections.component1
-import kotlin.collections.component2
 
 class LevelViewModel(private val level: String, courseWords: Map<Int, Word>) : ViewModel() {
     private val words = courseWords.filter { (_, word) -> word.level == level }.toMutableStateMap()
@@ -22,6 +20,7 @@ class LevelViewModel(private val level: String, courseWords: Map<Int, Word>) : V
                         SortMethod.Id -> id
                         SortMethod.Name -> word.name
                         SortMethod.Repeat -> !word.isRepeat // descending
+                        SortMethod.Rate -> word.successRate
                     }
                 }
             )
@@ -31,7 +30,8 @@ class LevelViewModel(private val level: String, courseWords: Map<Int, Word>) : V
     enum class SortMethod {
         Id,
         Name,
-        Repeat
+        Repeat,
+        Rate
     }
 
     fun sort(method: SortMethod) {

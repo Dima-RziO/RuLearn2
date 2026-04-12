@@ -3,7 +3,6 @@ package ru.dimarzio.rulearn2.viewmodels
 import android.content.res.AssetManager
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.Lifecycle
@@ -46,12 +45,12 @@ class CourseViewModel(
     private val _words = MutableStateFlow(emptyMap<Int, Word>())
     private val _levels = MutableStateFlow(emptyMap<String, Level>())
 
+    private var searchResults by mutableStateOf(emptyMap<Int, Word>())
+
     val words = _words.asStateFlow()
     val levels = _levels.asStateFlow()
 
     var showLoadingIndicator by mutableStateOf(false)
-
-    private var searchResults = mutableStateMapOf<Int, Word>()
 
     var showSearchingIndicator by mutableStateOf(false)
         private set
@@ -115,6 +114,9 @@ class CourseViewModel(
     }
 
     var loss by mutableStateOf(Loss(0.0, 0.0, 0.0))
+        private set
+    var showTrainingIndicator by mutableStateOf(false)
+        private set
 
     val locale = Locale(course.take(2))
 
@@ -206,6 +208,11 @@ class CourseViewModel(
             predicate = { (i, _) -> id == i }
         )
 
+        searchResults = searchResults.replaceValues(
+            with = word,
+            predicate = { (i, _) -> id == i }
+        )
+
         if (old?.level == word.level) { // Level was not changed.
             _levels.value = _levels.value.replaceValuesCompat(
                 with = { (_, level) ->
@@ -260,8 +267,6 @@ class CourseViewModel(
                 )
             }
         }
-
-        searchResults[id] = word
     }
 
     fun removeWord(id: Int) {
@@ -272,6 +277,8 @@ class CourseViewModel(
             runCatching { word.delete() }.onFailure(handler::onErrorHandled) // Remove audio
 
             _words.value -= id
+            searchResults -= id
+
             _levels.value = _levels.value.replaceValuesCompat(
                 with = { (_, level) ->
                     level.copy(
@@ -282,7 +289,6 @@ class CourseViewModel(
                 },
                 predicate = { (name, _) -> name == word.level }
             )
-            searchResults.remove(id)
         }
     }
 
@@ -296,7 +302,7 @@ class CourseViewModel(
 
         searchResults.forEach { (id, word) ->
             if (word.level == name) {
-                searchResults.remove(id)
+                searchResults -= id
             }
         }
     }
@@ -320,6 +326,11 @@ class CourseViewModel(
         }
 
         _words.value = _words.value.replaceValuesCompat(
+            with = { (_, word) -> word.copy(level = to) },
+            predicate = { (_, word) -> word.level == from }
+        )
+
+        searchResults = searchResults.replaceValuesCompat(
             with = { (_, word) -> word.copy(level = to) },
             predicate = { (_, word) -> word.level == from }
         )
@@ -355,7 +366,7 @@ class CourseViewModel(
 
             val normalized = query.normalized()
 
-            val result = withContext(Dispatchers.Default) {
+            searchResults = withContext(Dispatchers.Default) {
                 _words.value.filter { (id, word) ->
                     normalized in word.normalizedName
                             || normalized in word.translation
@@ -363,31 +374,39 @@ class CourseViewModel(
                 }
             }
 
-            searchResults.clear()
-            searchResults.putAll(result)
-
             showSearchingIndicator = false
 
-            if (result.isEmpty()) {
+            if (searchResults.isEmpty()) {
                 handler.onMessageReceived("Nothing found.")
             }
         }
     }
 
     fun train() {
-        val success = model?.train(_words.value.map { (id, word) -> word.toFeatures(id) })
-        if (model is DefaultModel && success == true) {
-            val dir = File(appFolder, "tflite")
-            val ckpt = File(dir, "$course.ckpt")
-            val tflite = File(dir, "$course.tflite")
+        viewModelScope.launch {
+            showTrainingIndicator = true
 
-            model.save(ckpt)
-
-            assets.open(model.getName()).use { `is` ->
-                tflite.outputStream().use { os -> `is`.copyTo(os) }
+            val success = withContext(Dispatchers.Default) {
+                model?.train(_words.value.map { (id, word) -> word.toFeatures(id) })
             }
-        } else if (success == false) {
-            handler.onMessageReceived("Error.")
+
+            if (model is DefaultModel && success == true) {
+                val dir = File(appFolder, "tflite")
+                val ckpt = File(dir, "$course.ckpt")
+                val tflite = File(dir, "$course.tflite")
+
+                model.save(ckpt)
+
+                assets.open(model.getName()).use { `is` ->
+                    tflite.outputStream().use { os -> `is`.copyTo(os) }
+                }
+
+                handler.onMessageReceived("Success.")
+            } else if (success == false) {
+                handler.onMessageReceived("Error.")
+            }
+
+            showTrainingIndicator = false
         }
     }
 

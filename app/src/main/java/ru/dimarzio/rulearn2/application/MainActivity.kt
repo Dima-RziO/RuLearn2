@@ -310,6 +310,7 @@ fun CourseRoute(
         model = courseViewModel.model?.getName().toString(),
         modelLoaded = courseViewModel.model?.isLoaded() == true,
         loss = courseViewModel.loss,
+        showTrainingIndicator = courseViewModel.showTrainingIndicator,
         onTrainActionClick = courseViewModel::train,
         filterRepeat = courseViewModel.filterRepeat,
         filterNotRepeat = courseViewModel.filterNotRepeat,

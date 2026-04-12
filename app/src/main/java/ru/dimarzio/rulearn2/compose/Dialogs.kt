@@ -435,8 +435,8 @@ fun AboutDialog(onDismissRequest: () -> Unit) {
         text = {
             Text(
                 text = "Changelog:\n" +
-                        "• Added default model setting\n" +
-                        "• Removed normalization from providers, models are expected to have built-in\n" +
+                        "• Added sorting by success_rate\n" +
+                        "• Updated default models\n" +
                         "• General bug fixes and other improvements"
             )
         }

@@ -35,7 +35,8 @@ class CourseModel(
 
     override fun train(contexts: List<Features>): Boolean {
         val result = runCatching {
-            val batches = contexts.shuffled().chunked(32).map { batch ->
+            val filtered = contexts.filter { context -> context.repetitions > 0 }
+            val batches = filtered.shuffled().chunked(32).map { batch ->
                 mapOf(
                     "x" to Array(batch.size) { i -> provider.provide(batch[i]) },
                     "y" to Array(batch.size) { i ->
@@ -44,7 +45,7 @@ class CourseModel(
                 )
             }
 
-            for (epoch in 1..10) {
+            for (epoch in 1..100) {
                 for (batchInputs in batches) {
                     interpreter.runSignature(batchInputs, emptyMap(), "train")
                 }

@@ -219,7 +219,7 @@ class Database(private val folder: File) : AutoCloseable { // Not singleton!
         val content = when {
             course.endsWith("_stat") -> mapOf(
                 "id" to line[0].toIntOrNull(),
-                "accessed" to line[1].toIntOrNull(),
+                "accessed" to line[1].toLongOrNull(),
                 "skip" to line[2].toIntOrNull(),
                 "difficult" to line[3].toIntOrNull(),
                 "rating" to line[4].toIntOrNull(),
@@ -245,7 +245,7 @@ class Database(private val folder: File) : AutoCloseable { // Not singleton!
             )
         }
 
-        database.insertOrThrow("'$course'", null, content.toContentValues())
+        database.insert("'$course'", null, content.toContentValues())
     }
 
     fun exportTable(course: String): List<List<String?>> {

@@ -8,7 +8,7 @@ class ImportFactory(private val database: Database, private val folder: File) { 
         return when (name.substringAfterLast('.')) { // Extension
             "csv" -> CSV(database, name)
             "db" -> DB(database.path, name)
-            "png", "jpg", "mp3", "tflite" -> Media(folder, name)
+            "png", "jpg", "mp3", "tflite", "ckpt" -> Media(folder, name)
             "zip" -> ZIP(this, name)
             else -> ImportComponent(name)
         }

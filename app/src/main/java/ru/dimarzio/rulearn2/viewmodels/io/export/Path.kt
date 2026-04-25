@@ -7,9 +7,12 @@ import java.util.zip.ZipOutputStream
 class Path(name: String) : ExportComponent(name) { // Leaf
     override fun export(zos: ZipOutputStream) {
         val file = File(name)
-        val entry = ZipEntry(file.name)
 
-        zos.putNextEntry(entry)
-        file.inputStream().use { `is` -> `is`.copyTo(zos) }
+        if (file.exists()) {
+            val entry = ZipEntry(file.name)
+
+            zos.putNextEntry(entry)
+            file.inputStream().use { `is` -> `is`.copyTo(zos) }
+        }
     }
 }

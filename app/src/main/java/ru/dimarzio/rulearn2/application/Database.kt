@@ -521,8 +521,8 @@ class Database(private val folder: File) : AutoCloseable { // Not singleton!
     private fun replicateMl(master: String, slave: String, ml: String, stat: String) {
         // Insert only those fields, which are absent in master, but exist in slave.
         database.execSQL(
-            "INSERT INTO $master.'$ml' (id, n_repeat, sum_correct, cur_rating, s_lapsed, type_repeat, n_hint) " +
-                    "SELECT id, n_repeat, sum_correct, cur_rating, s_lapsed, type_repeat, n_hint " +
+            "INSERT INTO $master.'$ml' (id, n_repeat, sum_correct, cur_rating, s_lapsed, type_repeat, hint_frac) " +
+                    "SELECT id, n_repeat, sum_correct, cur_rating, s_lapsed, type_repeat, hint_frac " +
                     "FROM $slave.'$ml' " +
                     "WHERE NOT EXISTS (SELECT 1 FROM $master.'$ml' " +
                     "WHERE $master.'$ml'.id = $slave.'$ml'.id)"
@@ -531,8 +531,8 @@ class Database(private val folder: File) : AutoCloseable { // Not singleton!
         // Update only those fields, where master.accessed < slave.accessed
         database.execSQL(
             "UPDATE $master.'$ml' " +
-                    "SET (n_repeat, sum_correct, cur_rating, s_lapsed, type_repeat, n_hint) = (" +
-                    "SELECT n_repeat, sum_correct, cur_rating, s_lapsed, type_repeat, n_hint " +
+                    "SET (n_repeat, sum_correct, cur_rating, s_lapsed, type_repeat, hint_frac) = (" +
+                    "SELECT n_repeat, sum_correct, cur_rating, s_lapsed, type_repeat, hint_frac " +
                     "FROM $slave.'$ml' WHERE id = $master.'$ml'.id) " +
                     "WHERE EXISTS (SELECT 1 FROM $slave.'$stat' " +
                     "JOIN $master.'$stat' ON $master.'$stat'.id = $slave.'$stat'.id " +

@@ -182,9 +182,7 @@ class CoursesViewModel(
 
                         peer.getSelectedFileFromServer(host, file, dest)
 
-                        database.replicate(dest)
-
-                        replicated.addAll(replicated)
+                        replicated.addAll(database.replicate(dest))
                     }
                 }
             }
@@ -213,7 +211,10 @@ class CoursesViewModel(
 
                     File(audio, "$name/").deleteRecursively()
                     File(pictures, "$name/").deleteRecursively()
+
                     File(tflite, "$name.tflite").delete()
+                    File(tflite, "$name.ckpt").delete()
+
                     ImageFile("$folder/icons/$name")?.delete()
 
                     database.deleteCourse(name)
@@ -242,6 +243,9 @@ class CoursesViewModel(
             if (renamedIcon != null) {
                 icon.renameTo(renamedIcon)
             }
+
+            File(folder, "tflite/$from.tflite").renameTo(File(folder, "tflite/$to.tflite"))
+            File(folder, "tflite/$from.ckpt").renameTo(File(folder, "tflite/$to.ckpt"))
 
             val course = courses.remove(from)
             if (course != null) {

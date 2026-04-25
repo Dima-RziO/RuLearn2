@@ -11,8 +11,8 @@
       "type": "SINGLE",
       "filters": [],
       "attributes": [],
-      "versionCode": 35,
-      "versionName": "2.9.2-PATCH1",
+      "versionCode": 37,
+      "versionName": "2.9.4-PATCH3",
       "outputFile": "app-release.apk"
     }
   ],

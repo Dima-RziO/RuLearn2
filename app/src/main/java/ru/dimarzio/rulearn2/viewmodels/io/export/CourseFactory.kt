@@ -20,6 +20,9 @@ class CourseFactory(private val course: String) : ExportFactory {
             composite.add(Path(icon.path))
         }
 
+        composite.add(Path("$folder/tflite/$course.tflite"))
+        composite.add(Path("$folder/tflite/$course.ckpt"))
+
         composite.add(Course(database, course))
 
         return composite

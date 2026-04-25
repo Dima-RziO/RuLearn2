@@ -435,7 +435,7 @@ fun AboutDialog(onDismissRequest: () -> Unit) {
         text = {
             Text(
                 text = "Changelog:\n" +
-                        "• General bug fixes and other improvements"
+                        "• General bug fixes"
             )
         }
     )

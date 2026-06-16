@@ -608,25 +608,33 @@ private fun TopBarActions(
     }
 
     if (expanded) {
-        val filterIcon = ImageVector.vectorResource(id = R.drawable.baseline_filter_list_24)
         AppBarActions(
-            Triple(filterIcon, "Filter search") { showFilterDialog = true },
-            Triple(null, "Settings", onSettingsActionClick),
-            Triple(null, "About") { showAboutDialog = true }
+            actions = {
+                val filterIcon = ImageVector.vectorResource(id = R.drawable.baseline_filter_list_24)
+                Action(filterIcon, "Filter search") { showFilterDialog = true }
+            },
+            overflowMenu = {
+                OverflowAction("Settings", onSettingsActionClick)
+                AboutAction()
+            }
         )
     } else {
         val trainIcon = ImageVector.vectorResource(id = R.drawable.baseline_model_training_24)
         AppBarActions(
-            Triple(Icons.Filled.Add, "Add level") { showAddDialog = true },
-            Triple(trainIcon, "Train model") {
-                if (modelLoaded) {
-                    showTFLiteDialog = true
-                } else {
-                    context.toast("Model is not loaded.")
+            actions = {
+                Action(Icons.Filled.Add, "Add level") { showAddDialog = true }
+                Action(trainIcon, "Train model") {
+                    if (modelLoaded) {
+                        showTFLiteDialog = true
+                    } else {
+                        context.toast("Model is not loaded.")
+                    }
                 }
             },
-            Triple(null, "Settings", onSettingsActionClick),
-            Triple(null, "About") { showAboutDialog = true }
+            overflowMenu = {
+                OverflowAction("Settings", onSettingsActionClick)
+                AboutAction()
+            }
         )
     }
 }

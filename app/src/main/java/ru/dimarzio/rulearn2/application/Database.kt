@@ -28,14 +28,15 @@ class Database(private val folder: File) : AutoCloseable { // Not singleton!
     private val models = ModelFactory
 
     val path get() = File(database.path)
+    var lastlyAttached: File? = null
 
     val courses get() = getCoursesNames().associateWith(::getCourse)
 
     companion object {
         private const val MS = 3600000.0
 
-        private const val MASTER = "main"
-        private const val SLAVE = "slave"
+        const val MASTER = "main"
+        const val SLAVE = "slave"
 
         const val DB_NAME = "rulearn.db"
     }
@@ -541,37 +542,51 @@ class Database(private val folder: File) : AutoCloseable { // Not singleton!
         )
     }
 
-    fun replicate(from: File): List<String> { // Result is replicated courses.
-        try {
+    fun attach(db: File, name: String) {
+        database.execSQL("ATTACH DATABASE '$db' AS $name")
+        lastlyAttached = db
+    }
+
+    fun detach(name: String) {
+        database.execSQL("DETACH DATABASE $name")
+    }
+
+    /*
+     * Result is replicated courses;
+     * Source database is considered to be attached already.
+     */
+    fun replicate(slaveCourses: List<String>): List<String> {
+        val masterCourses = getCoursesNames(MASTER)
+
+        slaveCourses.forEach { course ->
+            if (course !in masterCourses) {
+                replicateCourse(MASTER, SLAVE, course)
+            }
+        }
+
+        masterCourses.forEach { course ->
+            if (course in slaveCourses) {
+                replicateWords(MASTER, SLAVE, course)
+                replicateMl(
+                    MASTER,
+                    SLAVE,
+                    course + "_ml",
+                    course + "_stat"
+                ) // Do NOT change the order.
+                replicateStat(MASTER, SLAVE, course + "_stat")
+            }
+        }
+
+        return slaveCourses
+    }
+
+    fun replicate(from: File, slaveCourses: List<String>): List<String> {
+        return try {
             database.execSQL("ATTACH DATABASE '$from' AS $SLAVE")
-
-            val slaveCourses = getCoursesNames(SLAVE)
-            val masterCourses = getCoursesNames(MASTER)
-
-            slaveCourses.forEach { course ->
-                if (course !in masterCourses) {
-                    replicateCourse(MASTER, SLAVE, course)
-                }
-            }
-
-            masterCourses.forEach { course ->
-                if (course in slaveCourses) {
-                    replicateWords(MASTER, SLAVE, course)
-                    replicateMl(
-                        MASTER,
-                        SLAVE,
-                        course + "_ml",
-                        course + "_stat"
-                    ) // Do NOT change the order.
-                    replicateStat(MASTER, SLAVE, course + "_stat")
-                }
-            }
-
-            return slaveCourses
+            replicate(slaveCourses)
         } finally {
             database.execSQL("DETACH DATABASE $SLAVE")
         }
-
     }
 
     override fun close() {

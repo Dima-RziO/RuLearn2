@@ -207,7 +207,8 @@ fun <T> GroupedMultiChoiceDialog(
 private fun LabeledRadioButton(
     selected: Boolean,
     onClick: () -> Unit,
-    label: String
+    label: String,
+    enabled: Boolean = true,
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -217,6 +218,7 @@ private fun LabeledRadioButton(
     ) {
         RadioButton(
             selected = selected,
+            enabled = enabled,
             onClick = onClick
         )
 
@@ -274,6 +276,55 @@ fun <T> SingleChoiceDialog(
         }
     )
 }
+
+@Composable
+fun <T> SingleChoiceDialog(
+    title: String,
+    confirmButton: String,
+    items: Set<T>,
+    selected: T?,
+    confirmEnabled: Boolean,
+    onItemSelected: (T) -> Unit,
+    onDismissRequest: () -> Unit,
+    onConfirmation: (T) -> Unit,
+    getLabel: (T) -> String = { item -> item.toString() }
+) {
+    AlertDialog(
+        onDismissRequest = onDismissRequest,
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    if (selected != null) {
+                        onDismissRequest()
+                        onConfirmation(selected)
+                    }
+                },
+                enabled = confirmEnabled && selected != null
+            ) {
+                Text(text = confirmButton)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismissRequest) {
+                Text(text = "Cancel")
+            }
+        },
+        title = { Text(text = title) },
+        text = {
+            Column(modifier = Modifier.selectableGroup()) {
+                items.forEach { item ->
+                    LabeledRadioButton(
+                        selected = item == selected,
+                        onClick = { onItemSelected(item) },
+                        label = getLabel(item),
+                        enabled = confirmEnabled
+                    )
+                }
+            }
+        }
+    )
+}
+
 
 @Composable
 fun SelectAudioDialog(
@@ -435,7 +486,13 @@ fun AboutDialog(onDismissRequest: () -> Unit) {
         text = {
             Text(
                 text = "Changelog:\n" +
-                        "• General bug fixes"
+                        "• Google Nearby Share migration\n" +
+                        "• Added replication courses selection\n" +
+                        "• Added p2p confirmation\n" +
+                        "• Added already downloaded databases replication\n" +
+                        "• Refactored code\n" +
+                        "• General bug fixes and other improvements\n" +
+                        "• Removed org.tensorflow:tensorflow-lite-select-tf-ops library"
             )
         }
     )

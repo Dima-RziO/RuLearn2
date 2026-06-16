@@ -159,9 +159,13 @@ private fun TopBarActions(
     }
 
     AppBarActions(
-        Triple(Icons.Filled.Refresh, "Refresh", onRefreshActionClick),
-        Triple(null, "Settings", onSettingsActionClick),
-        Triple(null, "About") { showAboutDialog = true }
+        actions = {
+            Action(Icons.Filled.Refresh, "Refresh", onRefreshActionClick)
+        },
+        overflowMenu = {
+            OverflowAction("Settings", onSettingsActionClick)
+            AboutAction()
+        }
     )
 }
 

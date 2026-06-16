@@ -19,27 +19,32 @@ import com.google.android.gms.nearby.connection.PayloadCallback
 import com.google.android.gms.nearby.connection.PayloadTransferUpdate
 import com.google.android.gms.nearby.connection.Strategy
 import ru.dimarzio.rulearn2.BuildConfig
+import ru.dimarzio.rulearn2.application.Database
 import ru.dimarzio.rulearn2.viewmodels.ErrorHandler
-import java.io.File
 
-class P2PManager(private val client: ConnectionsClient, private val handler: ErrorHandler) {
-    private var connectedId: String? = null
-
-    lateinit var onFileReceived: (Uri) -> Unit
-
-    val endpoints = mutableStateMapOf<String, String>()
-
-    var transferProgress by mutableStateOf(null as Float?)
-        private set
-
-    val payloadCallback = object : PayloadCallback() {
+class P2PManager(
+    private val client: ConnectionsClient,
+    private val database: Database,
+    private val handler: ErrorHandler
+) {
+    private val payloadCallback = object : PayloadCallback() {
         override fun onPayloadReceived(id: String, payload: Payload) {
-            if (payload.type == Payload.Type.FILE) {
-                val uri = payload.asFile()?.asUri()
-                if (uri != null) {
-                    onFileReceived(uri)
-                } else {
-                    handler.onMessageReceived("Error.")
+            when (payload.type) {
+                Payload.Type.BYTES -> {
+                    if (String(payload.asBytes() ?: byteArrayOf()) == "PULL") {
+                        client.sendPayload(id, Payload.fromFile(database.path))
+                    }
+                }
+
+                Payload.Type.FILE -> {
+                    val uri = payload.asFile()?.asUri()
+                    if (uri != null) {
+                        onFileReceived(id, uri)
+                    } else {
+                        handler.onMessageReceived("Error.")
+                    }
+
+                    client.disconnectFromEndpoint(id)
                 }
             }
         }
@@ -62,9 +67,10 @@ class P2PManager(private val client: ConnectionsClient, private val handler: Err
         }
     }
 
-    val connectionCallback = object : ConnectionLifecycleCallback() {
+    private val connectionCallback = object : ConnectionLifecycleCallback() {
         override fun onConnectionInitiated(id: String, info: ConnectionInfo) {
-            client.acceptConnection(id, payloadCallback)
+            connectingId = id
+            connectionCode = info.authenticationDigits
         }
 
         override fun onConnectionResult(id: String, result: ConnectionResolution) {
@@ -73,12 +79,38 @@ class P2PManager(private val client: ConnectionsClient, private val handler: Err
             } else {
                 result.status.connectionResult?.errorMessage?.let(handler::onMessageReceived)
             }
+
+            connectingId = null
         }
 
         override fun onDisconnected(id: String) {
-            connectedId = null
+            if (connectedId == id) {
+                connectedId = null
+            }
+
+            if (connectingId == id) {
+                connectingId = null
+            }
         }
     }
+
+    lateinit var onFileReceived: (String, Uri) -> Unit // Id & Uri
+
+    val endpoints = mutableStateMapOf<String, String>()
+
+    var advertising by mutableStateOf(false)
+        private set
+
+    var connectedId by mutableStateOf<String?>(null)
+        private set
+    var connectingId by mutableStateOf<String?>(null)
+        private set
+
+    var connectionCode by mutableStateOf<String?>(null)
+        private set
+
+    var transferProgress by mutableStateOf<Float?>(null)
+        private set
 
     fun startAdvertising() {
         client.startAdvertising(
@@ -87,9 +119,18 @@ class P2PManager(private val client: ConnectionsClient, private val handler: Err
             connectionCallback,
             AdvertisingOptions.Builder().setStrategy(Strategy.P2P_STAR).build()
         )
+
+        advertising = true
+    }
+
+    fun stopAdvertising() {
+        client.stopAdvertising()
+        advertising = false
     }
 
     fun startDiscovery() {
+        endpoints.clear()
+
         val callback = object : EndpointDiscoveryCallback() {
             override fun onEndpointFound(id: String, info: DiscoveredEndpointInfo) {
                 endpoints[id] = info.endpointName
@@ -107,7 +148,40 @@ class P2PManager(private val client: ConnectionsClient, private val handler: Err
         )
     }
 
-    fun download(id: String, file: File) {
+    fun stopDiscovery() {
+        client.stopDiscovery()
+    }
+
+    fun connect(id: String) {
         client.requestConnection(Build.MODEL, id, connectionCallback)
+    }
+
+    fun acceptConnection() {
+        connectedId?.let { client.disconnectFromEndpoint(it) }
+        if (connectingId != null) {
+            client.acceptConnection(connectingId!!, payloadCallback)
+        }
+
+        connectionCode = null
+    }
+
+    fun rejectConnection() {
+        if (connectingId != null) {
+            client.rejectConnection(connectingId!!)
+        } else {
+            // Already rejected by hub.
+        }
+
+        connectionCode = null
+    }
+
+    fun pull() {
+        if (connectedId != null) {
+            client.sendPayload(connectedId!!, Payload.fromBytes("PULL".toByteArray()))
+        }
+    }
+
+    fun stop() {
+        client.stopAllEndpoints()
     }
 }

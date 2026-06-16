@@ -191,11 +191,16 @@ private fun TopBarActions(
         }
     }
 
-    val audioIcon = ImageVector.vectorResource(id = R.drawable.baseline_music_note_24)
     AppBarActions(
-        Triple(Icons.Filled.Refresh, "Refresh", onRefreshActionClick),
-        Triple(audioIcon, "Play audio") { showAudioDialog = true },
-        Triple(null, "Settings", onSettingsActionClick),
-        Triple(null, "About") { showAboutDialog = true }
+        actions = {
+            val audioIcon = ImageVector.vectorResource(id = R.drawable.baseline_music_note_24)
+
+            Action(Icons.Filled.Refresh, "Refresh", onRefreshActionClick)
+            Action(audioIcon, "Play audio") { showAudioDialog = true }
+        },
+        overflowMenu = {
+            OverflowAction("Settings", onSettingsActionClick)
+            AboutAction()
+        }
     )
 }

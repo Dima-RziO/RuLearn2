@@ -140,6 +140,7 @@ class MainActivity : ComponentActivity() {
             RuLearn2Theme(dynamicColor = prefsViewModel.dynamicColors) {
                 MainScreen(
                     preferencesViewModel = prefsViewModel,
+                    application = application,
                     player = player,
                     tts = tts
                 )
@@ -159,6 +160,7 @@ class MainActivity : ComponentActivity() {
 fun CoursesRoute(
     prefsViewModel: PreferencesViewModel,
     navController: NavController,
+    application: Application,
     handler: ErrorHandler
 ) {
     val context = LocalContext.current
@@ -170,8 +172,7 @@ fun CoursesRoute(
                 CoursesViewModel(
                     prefsViewModel.database,
                     handler,
-                    prefsViewModel.inDir,
-                    prefsViewModel.outDir,
+                    application,
                     lifecycle
                 )
             }
@@ -228,8 +229,18 @@ fun CoursesRoute(
         onExportDatabaseClick = {
             exportDatabaseLauncher.launch("rulearn.zip")
         },
-        getLocalHosts = coursesViewModel::localHosts,
-        replicationLogs = coursesViewModel.replicationLogs.collectAsState().value,
+        endpoints = coursesViewModel.p2p.endpoints,
+        connectedId = coursesViewModel.p2p.connectedId,
+        connectingId = coursesViewModel.p2p.connectingId,
+        connectionCode = coursesViewModel.p2p.connectionCode,
+        onConnectionRequested = coursesViewModel.p2p::connect,
+        acceptConnection = coursesViewModel.p2p::acceptConnection,
+        rejectConnection = coursesViewModel.p2p::rejectConnection,
+        advertise = coursesViewModel.p2p.advertising,
+        startAdvertising = coursesViewModel.p2p::startAdvertising,
+        stopAdvertising = coursesViewModel.p2p::stopAdvertising,
+        startDiscovery = coursesViewModel.p2p::startDiscovery,
+        stopDiscovery = coursesViewModel.p2p::stopDiscovery,
         onReplicateClick = coursesViewModel::replicate,
         onSQLiteClick = coursesViewModel::runSQLiteQuery,
         onSettingsActionClick = { navController.navigate(MainRoutes.Settings.route) },
@@ -264,6 +275,14 @@ fun CoursesRoute(
         importProgress = coursesViewModel.importProgress.collectAsState().value,
         deleteProgress = coursesViewModel.deleteProgress.collectAsState().value,
         exportProgress = coursesViewModel.exportProgress.collectAsState().value,
+        transferProgress = coursesViewModel.p2p.transferProgress,
+        alreadyReplicated = coursesViewModel.alreadyReplicated,
+        onAlreadyReplicatedDismissed = coursesViewModel::dismissReplication,
+        onAlreadyConfirmation = coursesViewModel::forceReplicate,
+        onAlreadyDenial = coursesViewModel::skipReplication,
+        replicationCourses = coursesViewModel.replicationCourses,
+        onReplicationCoursesDismissed = coursesViewModel::cancelReplication,
+        onReplicationCoursesSelected = coursesViewModel::finishReplication,
         isReplicating = coursesViewModel.isReplicating
     )
 }
@@ -990,6 +1009,7 @@ fun NavController.levelViewModel() =
 @Composable
 fun MainScreen(
     preferencesViewModel: PreferencesViewModel,
+    application: Application,
     player: MediaPlayer,
     tts: TextToSpeech
 ) {
@@ -1029,6 +1049,7 @@ fun MainScreen(
             CoursesRoute(
                 prefsViewModel = preferencesViewModel,
                 navController = navController,
+                application = application,
                 handler = handler
             )
         }

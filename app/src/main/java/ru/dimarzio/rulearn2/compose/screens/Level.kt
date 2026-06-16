@@ -221,12 +221,17 @@ private fun TopBarActions(
         }
     }
 
-    val sortIcon = ImageVector.vectorResource(id = R.drawable.baseline_sort_24)
     AppBarActions(
-        Triple(Icons.Filled.Add, "Add word", onAddActionClick),
-        Triple(sortIcon, "Sort words") { showSortDialog = true },
-        Triple(null, "Settings", onSettingsActionClick),
-        Triple(null, "About") { showAboutDialog = true }
+        actions = {
+            val sortIcon = ImageVector.vectorResource(id = R.drawable.baseline_sort_24)
+
+            Action(Icons.Filled.Add, "Add word", onAddActionClick)
+            Action(sortIcon, "Sort words") { showSortDialog = true }
+        },
+        overflowMenu = {
+            OverflowAction("Settings", onSettingsActionClick)
+            AboutAction()
+        }
     )
 }
 

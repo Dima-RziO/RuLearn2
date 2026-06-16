@@ -12,8 +12,8 @@ android {
         applicationId = "ru.dimarzio.rulearn2"
         minSdk = 26
         targetSdk = 35
-        versionCode = 37
-        versionName = "2.9.4-PATCH3"
+        versionCode = 38
+        versionName = "3.0.0-RC1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -24,6 +24,7 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -68,7 +69,7 @@ dependencies {
     implementation(libs.kotlin.csv.jvm)
     implementation(libs.commons.text)
     implementation(libs.tensorflow.lite)
-    implementation(libs.tensorflow.lite.select.tf.ops)
+    // implementation(libs.tensorflow.lite.select.tf.ops)
     implementation(libs.play.services.nearby)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

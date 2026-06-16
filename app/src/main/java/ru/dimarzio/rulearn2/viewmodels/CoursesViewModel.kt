@@ -1,8 +1,8 @@
 package ru.dimarzio.rulearn2.viewmodels
 
+import android.app.Application
 import android.content.Context
 import android.net.Uri
-import android.os.Build
 import android.provider.OpenableColumns
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -12,6 +12,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.android.gms.nearby.Nearby
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -27,18 +28,14 @@ import ru.dimarzio.rulearn2.viewmodels.io.export.ExportFactory
 import ru.dimarzio.rulearn2.viewmodels.io.import.CSV
 import ru.dimarzio.rulearn2.viewmodels.io.import.ImportComponent
 import ru.dimarzio.rulearn2.viewmodels.io.import.ImportFactory
-import vladis.luv.wificopy.transport.FileInfo
-import vladis.luv.wificopy.transport.Host
-import vladis.luv.wificopy.transport.Peer
-import vladis.luv.wificopy.transport.Prefs
+import ru.dimarzio.rulearn2.viewmodels.network.P2PManager
 import java.io.File
 import java.util.zip.ZipOutputStream
 
 class CoursesViewModel(
     private val database: Database,
     private val handler: ErrorHandler,
-    inDir: File,
-    outDir: File,
+    private val application: Application, // ConnectionsClient, cache, contentResolver
     lifecycle: Lifecycle
 ) : ViewModel(), Observer {
     private val courses = runCatching { database.courses }
@@ -50,10 +47,7 @@ class CoursesViewModel(
     private val _exportProgress = MutableStateFlow(null as Float?)
     private val _deleteProgress = MutableStateFlow(null as Float?)
 
-    private val _replicationLogs =
-        MutableStateFlow(emptyList<String>()) // MutableStateList does not support multithread operations.
-
-    private val peer: Peer
+    val p2p = P2PManager(Nearby.getConnectionsClient(application), database, handler)
 
     private val importedCourses = mutableSetOf<String>()
 
@@ -67,22 +61,33 @@ class CoursesViewModel(
     val exportProgress = _exportProgress.asStateFlow()
     val deleteProgress = _deleteProgress.asStateFlow()
 
-    val replicationLogs = _replicationLogs.asStateFlow()
-
+    var alreadyReplicated by mutableStateOf<Long?>(null)
+        private set
+    var replicationCourses by mutableStateOf<List<String>?>(null)
+        private set
     var isReplicating by mutableStateOf(false)
         private set
 
-    val localHosts: List<Host> get() = peer.hosts
-
     init {
-        // 29.12.25
-        Prefs.outboxFolder = outDir
-        Prefs.inboxFolder = inDir
+        p2p.onFileReceived = { id, uri ->
+            val file = File(application.cacheDir, id)
 
-        Prefs.hostname = Build.MODEL
+            application.contentResolver.openInputStream(uri)?.use { `is` ->
+                file.outputStream().use { os -> `is`.copyTo(os) }
+            }
 
-        peer = Peer { message -> _replicationLogs.value += message }
-        peer.startPeer()
+            database.attach(file, Database.SLAVE)
+
+            val courses = database.getCoursesNames(Database.SLAVE)
+            if (courses.isNotEmpty()) {
+                replicationCourses = courses
+            } else {
+                handler.onMessageReceived("No courses on the slave.")
+                file.delete() // As file has no courses, there is no reason to save it.
+            }
+
+            database.detach(Database.SLAVE)
+        }
 
         lifecycle.addObserver(
             LifecycleEventObserver { _, e ->
@@ -161,37 +166,6 @@ class CoursesViewModel(
             }
 
             _exportProgress.value = null
-
-            result
-                .onFailure(handler::onErrorHandled)
-                .onSuccess { handler.onMessageReceived("Success.") }
-        }
-    }
-
-    fun replicate(hosts: Set<Host>) {
-        viewModelScope.launch {
-            isReplicating = true
-
-            val replicated = mutableSetOf<String>()
-            val result = withContext(Dispatchers.Default) {
-                runCatching {
-                    hosts.forEach { host ->
-                        val file = FileInfo("rulearn.db", 0, 0)
-                        val stem = host.ip.hostAddress ?: host.hostname
-                        val dest = File(Prefs.inboxFolder, "$stem.db")
-
-                        peer.getSelectedFileFromServer(host, file, dest)
-
-                        replicated.addAll(database.replicate(dest))
-                    }
-                }
-            }
-
-            isReplicating = false
-
-            replicated.forEach { course ->
-                courses[course] = database.getCourse(course)
-            }
 
             result
                 .onFailure(handler::onErrorHandled)
@@ -331,6 +305,67 @@ class CoursesViewModel(
         )
     }
 
+    fun replicate(id: String) {
+        if (id == p2p.connectedId) {
+            val file = File(application.cacheDir, id)
+            if (!file.exists()) {
+                p2p.pull()
+            } else {
+                alreadyReplicated = file.lastModified()
+            }
+        } else {
+            handler.onMessageReceived("Ids inconsistency.")
+        }
+    }
+
+    fun forceReplicate() {
+        alreadyReplicated = null
+        p2p.pull()
+    }
+
+    fun skipReplication() {
+        alreadyReplicated = null
+        if (p2p.connectedId != null) { // Should be always true
+            val file = File(application.cacheDir, p2p.connectedId!!)
+            // File MUST exist and it MUST have courses inside.
+            database.attach(file, Database.SLAVE)
+            replicationCourses = database.getCoursesNames(Database.SLAVE)
+            database.detach(Database.SLAVE)
+        }
+    }
+
+    fun dismissReplication() {
+        alreadyReplicated = null
+    }
+
+    fun finishReplication(selectedCourses: Set<String>) {
+        viewModelScope.launch {
+            replicationCourses = null
+            isReplicating = true
+
+            database.attach(database.lastlyAttached!!, Database.SLAVE)
+
+            val result = runCatching {
+                val replicated = withContext(Dispatchers.IO) {
+                    database.replicate(selectedCourses.toList())
+                }
+
+                replicated.forEach { course ->
+                    courses[course] = database.getCourse(course)
+                }
+            }
+
+            database.detach(Database.SLAVE)
+            result.onFailure(handler::onErrorHandled)
+
+            isReplicating = false
+        }
+    }
+
+    fun cancelReplication() {
+        replicationCourses = null
+    }
+
     fun runSQLiteQuery(query: String) {
         val result = runCatching {
             database.rawQuery(query)
@@ -368,5 +403,9 @@ class CoursesViewModel(
                 }
             }
         }
+    }
+
+    override fun onCleared() {
+        p2p.stop()
     }
 }

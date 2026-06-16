@@ -441,15 +441,19 @@ private fun AppBarActions(
         )
     }
 
-    val audioIcon = ImageVector.vectorResource(id = R.drawable.baseline_music_note_24)
-    val accessedIcon = ImageVector.vectorResource(id = R.drawable.baseline_access_time_24)
-
     AppBarActions(
-        Triple(audioIcon, "Play audio") { showAudioDialog = true },
-        Triple(accessedIcon, "Pick accessed") { showDatePickerDialog = true },
-        Triple(Icons.Filled.Delete, "Delete") { showDeleteDialog = true },
-        Triple(null, "Settings", onSettingsActionClick),
-        Triple(null, "About") { showAboutDialog = true }
+        actions = {
+            val audioIcon = ImageVector.vectorResource(id = R.drawable.baseline_music_note_24)
+            val accessedIcon = ImageVector.vectorResource(id = R.drawable.baseline_access_time_24)
+
+            Action(audioIcon, "Play audio") { showAudioDialog = true }
+            Action(accessedIcon, "Pick accessed") { showDatePickerDialog = true }
+            Action(Icons.Filled.Delete, "Delete") { showDeleteDialog = true }
+        },
+        overflowMenu = {
+            OverflowAction("Settings", onSettingsActionClick)
+            AboutAction()
+        }
     )
 }
 

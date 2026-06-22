@@ -486,13 +486,7 @@ fun AboutDialog(onDismissRequest: () -> Unit) {
         text = {
             Text(
                 text = "Changelog:\n" +
-                        "• Google Nearby Share migration\n" +
-                        "• Added replication courses selection\n" +
-                        "• Added p2p confirmation\n" +
-                        "• Added already downloaded databases replication\n" +
-                        "• Refactored code\n" +
-                        "• General bug fixes and other improvements\n" +
-                        "• Removed org.tensorflow:tensorflow-lite-select-tf-ops library"
+                        "• General bug fixes"
             )
         }
     )

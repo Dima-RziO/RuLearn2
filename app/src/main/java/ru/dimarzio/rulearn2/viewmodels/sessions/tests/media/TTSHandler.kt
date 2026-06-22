@@ -15,6 +15,8 @@ class TTSHandler(
             tts.say(phrase, locale) { success ->
                 if (!success) {
                     super.handle(deviceVolume, onHandled)
+                } else {
+                    onHandled.invoke()
                 }
             }
         } else {

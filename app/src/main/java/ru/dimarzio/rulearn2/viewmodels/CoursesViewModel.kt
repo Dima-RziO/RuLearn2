@@ -70,23 +70,25 @@ class CoursesViewModel(
 
     init {
         p2p.onFileReceived = { id, uri ->
-            val file = File(application.cacheDir, id)
+            val result = runCatching {
+                val file = File(application.cacheDir, id)
 
-            application.contentResolver.openInputStream(uri)?.use { `is` ->
-                file.outputStream().use { os -> `is`.copyTo(os) }
+                application.contentResolver.openInputStream(uri)?.use { `is` ->
+                    file.outputStream().use { os -> `is`.copyTo(os) }
+                }
+
+                database.runAttaching(file) {
+                    val courses = database.getCoursesNames(Database.SLAVE)
+                    if (courses.isNotEmpty()) {
+                        replicationCourses = courses
+                    } else {
+                        handler.onMessageReceived("No courses on the slave.")
+                        file.delete() // As file has no courses, there is no reason to save it.
+                    }
+                }
             }
 
-            database.attach(file, Database.SLAVE)
-
-            val courses = database.getCoursesNames(Database.SLAVE)
-            if (courses.isNotEmpty()) {
-                replicationCourses = courses
-            } else {
-                handler.onMessageReceived("No courses on the slave.")
-                file.delete() // As file has no courses, there is no reason to save it.
-            }
-
-            database.detach(Database.SLAVE)
+            result.onFailure(handler::onErrorHandled)
         }
 
         lifecycle.addObserver(
@@ -326,11 +328,15 @@ class CoursesViewModel(
     fun skipReplication() {
         alreadyReplicated = null
         if (p2p.connectedId != null) { // Should be always true
-            val file = File(application.cacheDir, p2p.connectedId!!)
-            // File MUST exist and it MUST have courses inside.
-            database.attach(file, Database.SLAVE)
-            replicationCourses = database.getCoursesNames(Database.SLAVE)
-            database.detach(Database.SLAVE)
+            val result = runCatching {
+                val file = File(application.cacheDir, p2p.connectedId!!)
+                // File MUST exist and it MUST have courses inside.
+                database.runAttaching(file) {
+                    replicationCourses = database.getCoursesNames(Database.SLAVE)
+                }
+            }
+
+            result.onFailure(handler::onErrorHandled)
         }
     }
 
@@ -343,9 +349,7 @@ class CoursesViewModel(
             replicationCourses = null
             isReplicating = true
 
-            database.attach(database.lastlyAttached!!, Database.SLAVE)
-
-            val result = runCatching {
+            database.runAttaching {
                 val replicated = withContext(Dispatchers.IO) {
                     database.replicate(selectedCourses.toList())
                 }
@@ -354,9 +358,6 @@ class CoursesViewModel(
                     courses[course] = database.getCourse(course)
                 }
             }
-
-            database.detach(Database.SLAVE)
-            result.onFailure(handler::onErrorHandled)
 
             isReplicating = false
         }

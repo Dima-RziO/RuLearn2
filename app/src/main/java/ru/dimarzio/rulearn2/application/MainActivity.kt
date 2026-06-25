@@ -958,6 +958,8 @@ fun SettingsRoute(
         },
         notifyPer = prefsViewModel.notifyPer,
         onNotifyPerChange = prefsViewModel::updateNotifyPer,
+        ignoreQuiet = prefsViewModel.ignoreQuiet,
+        onIgnoreQuietChange = prefsViewModel::updateIgnoreQuiet,
         customFolder = prefsViewModel.useCustomFolder,
         onCustomFolderChange = { useCustomFolder ->
             if (useCustomFolder && !context.storagePermissionGranted) {

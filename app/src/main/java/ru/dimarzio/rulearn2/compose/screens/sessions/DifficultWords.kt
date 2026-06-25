@@ -65,9 +65,10 @@ fun DifficultWords(
     onRefreshRequested: () -> Unit,
     ended: Boolean
 ) {
-    val scaffoldState = rememberBottomSheetScaffoldState()
     val navController = rememberNavController()
     val coroutineScope = rememberCoroutineScope()
+
+    val scaffoldState = rememberBottomSheetScaffoldState()
 
     val context = LocalContext.current
 

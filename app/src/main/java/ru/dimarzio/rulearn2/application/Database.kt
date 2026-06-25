@@ -551,6 +551,19 @@ class Database(private val folder: File) : AutoCloseable { // Not singleton!
         database.execSQL("DETACH DATABASE $name")
     }
 
+    inline fun runAttaching( // Do NOT remove the inline modifier.
+        db: File = lastlyAttached ?: error("No lastlyAttached database."),
+        name: String = Database.SLAVE,
+        block: (name: String) -> Unit
+    ) {
+        try {
+            attach(db, name)
+            block(name)
+        } finally {
+            detach(name)
+        }
+    }
+
     /*
      * Result is replicated courses;
      * Source database is considered to be attached already.
@@ -582,10 +595,10 @@ class Database(private val folder: File) : AutoCloseable { // Not singleton!
 
     fun replicate(from: File, slaveCourses: List<String>): List<String> {
         return try {
-            database.execSQL("ATTACH DATABASE '$from' AS $SLAVE")
+            attach(from, SLAVE)
             replicate(slaveCourses)
         } finally {
-            database.execSQL("DETACH DATABASE $SLAVE")
+            detach(SLAVE)
         }
     }
 

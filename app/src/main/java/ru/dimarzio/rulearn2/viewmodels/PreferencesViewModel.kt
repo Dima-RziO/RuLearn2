@@ -69,6 +69,8 @@ class PreferencesViewModel(private val application: Application) : ViewModel() {
         )
     )
         private set
+    var ignoreQuiet by mutableStateOf(prefs.getBoolean(IGNORE_QUIET, false))
+        private set
 
     var useCustomFolder by mutableStateOf(
         if (application.storagePermissionGranted) {
@@ -121,6 +123,7 @@ class PreferencesViewModel(private val application: Application) : ViewModel() {
             deprecatedProvider = deprecatedProvider,
             notify = notify,
             notifyPer = notifyPer,
+            ignoreQuiet = ignoreQuiet,
             useCustomFolder = useCustomFolder,
             customFolderPath = customFolderPath,
             dynamicColors = dynamicColors
@@ -153,6 +156,7 @@ class PreferencesViewModel(private val application: Application) : ViewModel() {
 
         private const val NOTIFY = "notify"
         private const val NOTIFY_PER = "notify_per"
+        private const val IGNORE_QUIET = "ignore_quiet_hours"
         private const val USE_CUSTOM_FOLDER = "use_custom_folder"
         private const val CUSTOM_FOLDER_PATH = "custom_folder_path"
         private const val DYNAMIC_COLORS = "dynamic_colors"
@@ -161,6 +165,8 @@ class PreferencesViewModel(private val application: Application) : ViewModel() {
 
         lateinit var settings: Settings
             private set
+
+        val isSettingsReady get() = ::settings.isInitialized
     }
 
     enum class Session {
@@ -185,6 +191,7 @@ class PreferencesViewModel(private val application: Application) : ViewModel() {
         val deprecatedProvider: Boolean,
         val notify: Boolean,
         val notifyPer: Duration,
+        val ignoreQuiet: Boolean,
         val useCustomFolder: Boolean,
         val customFolderPath: String?,
         val dynamicColors: Boolean
@@ -331,6 +338,15 @@ class PreferencesViewModel(private val application: Application) : ViewModel() {
         if (notify) {
             scheduleRepeatReceiver(with)
         }
+    }
+
+    fun updateIgnoreQuiet(with: Boolean) {
+        prefs.edit {
+            putBoolean(IGNORE_QUIET, with)
+        }
+
+        ignoreQuiet = with
+        settings = settings.copy(ignoreQuiet = with)
     }
 
     fun updateCustomFolder(with: Boolean) {

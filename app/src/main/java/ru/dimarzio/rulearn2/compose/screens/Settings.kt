@@ -48,6 +48,8 @@ fun Settings(
     onNotifyChange: (Boolean) -> Unit,
     notifyPer: Duration,
     onNotifyPerChange: (Duration) -> Unit,
+    ignoreQuiet: Boolean,
+    onIgnoreQuietChange: (Boolean) -> Unit,
     customFolder: Boolean,
     onCustomFolderChange: (Boolean) -> Unit,
     customFolderPath: String?,
@@ -171,6 +173,14 @@ fun Settings(
                     enabled = notify,
                     items = setOf(1.hours, 5.hours, 1.days),
                     onItemClick = onNotifyPerChange
+                )
+
+                SwitchPreference(
+                    title = "Ignore quiet hours",
+                    summary = "Send notifications between 22:00 and 8:00",
+                    checked = ignoreQuiet,
+                    onCheckedChange = onIgnoreQuietChange,
+                    enabled = notify
                 )
             }
 

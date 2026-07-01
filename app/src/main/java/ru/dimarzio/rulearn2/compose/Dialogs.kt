@@ -486,7 +486,8 @@ fun AboutDialog(onDismissRequest: () -> Unit) {
         text = {
             Text(
                 text = "Changelog:\n" +
-                        "• Added ignore quiet hours setting\n" +
+                        "• The audio now plays upon entering NewWord screen\n" +
+                        "• The bottom sheet area now dims at the end of the session\n" +
                         "• General bug fixes and other improvements"
             )
         }

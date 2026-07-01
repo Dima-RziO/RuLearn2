@@ -1,12 +1,14 @@
 package ru.dimarzio.rulearn2.compose.screens.sessions.tests
 
 import android.speech.tts.TextToSpeech
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
@@ -24,6 +26,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.vectorResource
@@ -64,24 +67,31 @@ fun NewWord(
 ) {
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(text = title)
-                },
-                navigationIcon = {
-                    NavigationIcon(onClick = onNavigationIconClick)
-                },
-                actions = {
-                    TopBarActions(
-                        word = word,
-                        tts = tts,
-                        locale = locale,
-                        onRefreshActionClick = onRefreshActionClick,
-                        onAudioClick = onAudioClick,
-                        onSettingsActionClick = onSettingsActionClick
-                    )
-                }
-            )
+            Column {
+                TopAppBar(
+                    title = {
+                        Text(text = title)
+                    },
+                    navigationIcon = {
+                        NavigationIcon(onClick = onNavigationIconClick)
+                    },
+                    actions = {
+                        TopBarActions(
+                            word = word,
+                            tts = tts,
+                            locale = locale,
+                            onRefreshActionClick = onRefreshActionClick,
+                            onAudioClick = onAudioClick,
+                            onSettingsActionClick = onSettingsActionClick
+                        )
+                    }
+                )
+
+                LinearProgressIndicator(
+                    progress = { progress / 100 },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
         },
         floatingActionButton = {
             ExtendedFloatingActionButton(
@@ -102,48 +112,52 @@ fun NewWord(
             )
         }
     ) { innerPadding ->
-        Column(modifier = Modifier.padding(innerPadding)) {
-            LinearProgressIndicator(
-                progress = { progress / 100 },
-                modifier = Modifier.fillMaxWidth()
-            )
+        Box {
+            Column(modifier = Modifier.padding(innerPadding)) {
+                Row(modifier = Modifier.padding(10.dp)) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        AutoSizeText(
+                            text = word.name,
+                            maxFontSize = 24.sp,
+                            minFontSize = 16.sp,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
 
-            Spacer(modifier = Modifier.size(10.dp))
+                        AutoSizeText(
+                            text = word.translation,
+                            maxFontSize = 16.sp,
+                            minFontSize = 12.sp,
+                            maxLines = 12,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
 
-            Row(modifier = Modifier.padding(10.dp)) {
-                Column(modifier = Modifier.weight(1f)) {
-                    AutoSizeText(
-                        text = word.name,
-                        maxFontSize = 24.sp,
-                        minFontSize = 16.sp,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    Spacer(modifier = Modifier.width(50.dp))
 
-                    AutoSizeText(
-                        text = word.translation,
-                        maxFontSize = 16.sp,
-                        minFontSize = 12.sp,
-                        maxLines = 12,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    Column {
+                        WordIndicator(
+                            word = word,
+                            maxRating = maxRating
+                        )
+
+                        SessionOptions(
+                            enabled = !ended,
+                            difficult = word.difficult,
+                            onLearnedClick = onLearnedClick,
+                            onDifficultClick = onDifficultClick
+                        )
+                    }
                 }
+            }
 
-                Spacer(modifier = Modifier.width(50.dp))
-
-                Column {
-                    WordIndicator(
-                        word = word,
-                        maxRating = maxRating
-                    )
-
-                    SessionOptions(
-                        enabled = !ended,
-                        difficult = word.difficult,
-                        onLearnedClick = onLearnedClick,
-                        onDifficultClick = onDifficultClick
-                    )
-                }
+            if (ended) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.6f))
+                        .padding(innerPadding) // Apply padding only after background set!
+                )
             }
         }
     }

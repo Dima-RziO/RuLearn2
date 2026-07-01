@@ -7,7 +7,9 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -94,15 +96,19 @@ fun GuessingReview(
                     }
                 )
 
+                val currentEnded by rememberUpdatedState(ended)
+
                 LaunchedEffect(Unit) {
                     guessingTestViewModel.generateTranslations(currentId, currentWord, courseWords)
                     navigationEvents.collect { (_, word) ->
-                        guessingTestViewModel.reverse()
-                        guessingTestViewModel.generateTranslations(
-                            id = word.getId(),
-                            word = word.getWord(),
-                            courseWords = courseWords,
-                        )
+                        if (!currentEnded) {
+                            guessingTestViewModel.reverse()
+                            guessingTestViewModel.generateTranslations(
+                                id = word.getId(),
+                                word = word.getWord(),
+                                courseWords = courseWords,
+                            )
+                        }
                     }
                 }
 

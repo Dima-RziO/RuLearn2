@@ -252,6 +252,7 @@ fun DifficultWords(
                         }
                     },
                     inputEnabled = typingTestViewModel.inputEnabled && !ended,
+                    ended = ended,
                     onHintClick = {
                         if (
                             typingTestViewModel.takeHint(

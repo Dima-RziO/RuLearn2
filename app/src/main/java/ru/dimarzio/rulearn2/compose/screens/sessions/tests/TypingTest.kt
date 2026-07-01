@@ -1,11 +1,13 @@
 package ru.dimarzio.rulearn2.compose.screens.sessions.tests
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -26,6 +28,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
@@ -57,6 +60,7 @@ fun TypingTest(
     inputValue: TextFieldValue,
     onInputValueChange: (TextFieldValue) -> Unit,
     inputEnabled: Boolean,
+    ended: Boolean,
     onHintClick: () -> Unit,
     error: Boolean,
     helperText: Boolean,
@@ -65,66 +69,77 @@ fun TypingTest(
 ) {
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(text = title)
-                },
-                navigationIcon = {
-                    NavigationIcon(onClick = onNavigationIconClick)
-                },
-                actions = {
-                    TopBarActions(
-                        onRefreshActionClick = onRefreshActionClick,
-                        onSettingsActionClick = onSettingsActionClick
-                    )
-                }
-            )
-        }
-    ) { innerPadding ->
-        Column(modifier = Modifier.padding(innerPadding)) {
-            LinearProgressIndicator(
-                progress = { progress / 100 },
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.size(10.dp))
-
-            Row(modifier = Modifier.padding(10.dp)) {
-                AutoSizeText(
-                    text = word.translation,
-                    maxFontSize = 24.sp,
-                    minFontSize = 16.sp,
-                    modifier = Modifier.weight(1f),
-                    maxLines = 12,
-                    overflow = TextOverflow.Ellipsis
+            Column {
+                TopAppBar(
+                    title = {
+                        Text(text = title)
+                    },
+                    navigationIcon = {
+                        NavigationIcon(onClick = onNavigationIconClick)
+                    },
+                    actions = {
+                        TopBarActions(
+                            onRefreshActionClick = onRefreshActionClick,
+                            onSettingsActionClick = onSettingsActionClick
+                        )
+                    }
                 )
 
-                Spacer(modifier = Modifier.width(50.dp))
-
-                Column {
-                    WordIndicator(
-                        word = word,
-                        maxRating = maxRating
+                LinearProgressIndicator(
+                    progress = { progress / 100 },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+    ) { innerPadding ->
+        Box {
+            Column(modifier = Modifier.padding(innerPadding)) {
+                Row(modifier = Modifier.padding(10.dp)) {
+                    AutoSizeText(
+                        text = word.translation,
+                        maxFontSize = 24.sp,
+                        minFontSize = 16.sp,
+                        modifier = Modifier.weight(1f),
+                        maxLines = 12,
+                        overflow = TextOverflow.Ellipsis
                     )
 
-                    SessionOptions(
-                        enabled = inputEnabled,
-                        difficult = word.difficult,
-                        onLearnedClick = onLearnedClick,
-                        onDifficultClick = onDifficultClick
-                    )
+                    Spacer(modifier = Modifier.width(50.dp))
+
+                    Column {
+                        WordIndicator(
+                            word = word,
+                            maxRating = maxRating
+                        )
+
+                        SessionOptions(
+                            enabled = inputEnabled,
+                            difficult = word.difficult,
+                            onLearnedClick = onLearnedClick,
+                            onDifficultClick = onDifficultClick
+                        )
+                    }
                 }
+
+                InputField(
+                    value = inputValue,
+                    onValueChange = onInputValueChange,
+                    readOnly = !inputEnabled,
+                    onHintClick = onHintClick,
+                    errorMessage = word.name.takeIf { error },
+                    helperText = word.name.takeIf { helperText },
+                    onDoneClick = onDoneClick
+                )
             }
 
-            InputField(
-                value = inputValue,
-                onValueChange = onInputValueChange,
-                readOnly = !inputEnabled,
-                onHintClick = onHintClick,
-                errorMessage = word.name.takeIf { error },
-                helperText = word.name.takeIf { helperText },
-                onDoneClick = onDoneClick
-            )
+            if (ended) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.6f))
+                        .padding(innerPadding) // Apply padding only after background set!
+                )
+            }
         }
     }
 }

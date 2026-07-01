@@ -7,7 +7,9 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -85,9 +87,12 @@ fun TypingReview(
             composable(SessionRoutes.TypingTest.route) {
                 val typingTestViewModel = viewModel<TypingTestViewModel>()
 
+                val currentEnded by rememberUpdatedState(ended)
                 LaunchedEffect(Unit) {
                     navigationEvents.collect {
-                        typingTestViewModel.reset()
+                        if (!currentEnded) {
+                            typingTestViewModel.reset()
+                        }
                     }
                 }
 
@@ -121,6 +126,7 @@ fun TypingReview(
                         }
                     },
                     inputEnabled = typingTestViewModel.inputEnabled && !ended,
+                    ended = ended,
                     onHintClick = {
                         if (
                             typingTestViewModel.takeHint(

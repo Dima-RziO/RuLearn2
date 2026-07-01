@@ -28,6 +28,7 @@ import ru.dimarzio.rulearn2.compose.screens.sessions.tests.TypingTest
 import ru.dimarzio.rulearn2.models.Word
 import ru.dimarzio.rulearn2.routes.SessionRoutes
 import ru.dimarzio.rulearn2.tflite.TFLiteModel
+import ru.dimarzio.rulearn2.utils.deviceVolume
 import ru.dimarzio.rulearn2.utils.navigate
 import ru.dimarzio.rulearn2.utils.navigateCleaning
 import ru.dimarzio.rulearn2.utils.play
@@ -36,8 +37,8 @@ import ru.dimarzio.rulearn2.viewmodels.PreferencesViewModel
 import ru.dimarzio.rulearn2.viewmodels.WordViewModel
 import ru.dimarzio.rulearn2.viewmodels.sessions.SessionWord
 import ru.dimarzio.rulearn2.viewmodels.sessions.tests.GuessingTestViewModel
-import ru.dimarzio.rulearn2.viewmodels.sessions.tests.NewWordViewModel
 import ru.dimarzio.rulearn2.viewmodels.sessions.tests.TypingTestViewModel
+import ru.dimarzio.rulearn2.viewmodels.sessions.tests.media.MediaFacade
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -94,9 +95,17 @@ fun LearnNewWords(
             exitTransition = { ExitTransition.None }
         ) {
             composable(SessionRoutes.NewWord.route) {
-                val newWordViewModel = viewModel<NewWordViewModel>()
-
                 LaunchedEffect(Unit) {
+                    MediaFacade.play(
+                        player,
+                        tts,
+                        this,
+                        currentWord.audios,
+                        currentWord.name,
+                        locale,
+                        context.deviceVolume
+                    )
+
                     navigationEvents.collect { (route, _) -> navController.navigateCleaning(route) }
                 }
 
@@ -118,7 +127,7 @@ fun LearnNewWords(
                     },
                     ended = ended,
                     onContinueClick = {
-                        newWordViewModel.next(context, player, tts, locale, currentWord)
+                        //newWordViewModel.next(context, player, tts, locale, currentWord)
                         onWordUpdated(currentId, currentWord, currentWord.copy(rating = 1))
                     },
                     maxRating = 10
@@ -232,6 +241,7 @@ fun LearnNewWords(
                         }
                     },
                     inputEnabled = typingTestViewModel.inputEnabled && !ended,
+                    ended = ended,
                     onHintClick = {
                         if (
                             typingTestViewModel.takeHint(

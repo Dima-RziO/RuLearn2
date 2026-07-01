@@ -1,6 +1,7 @@
 package ru.dimarzio.rulearn2.compose.screens.sessions.tests
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,7 +14,6 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
@@ -69,77 +69,88 @@ fun GuessingTest(
 ) {
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(text = title)
-                },
-                navigationIcon = {
-                    NavigationIcon(onClick = onNavigationIconClick)
-                },
-                actions = {
-                    TopBarActions(
-                        onSettingsActionClick = onSettingsActionClick,
-                        onRefreshActionClick = onRefreshActionClick
-                    )
-                }
-            )
-        }
-    ) { innerPadding ->
-        Column(modifier = Modifier.padding(innerPadding)) {
-            LinearProgressIndicator(
-                progress = { progress / 100 },
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.size(10.dp))
-
-            Row(
-                modifier = Modifier
-                    .weight(0.2f)
-                    .padding(10.dp)
-            ) {
-                AutoSizeText(
-                    text = if (!reversed) word.name else word.translation,
-                    maxFontSize = 24.sp,
-                    minFontSize = 16.sp,
-                    modifier = Modifier.weight(1f)
+            Column {
+                TopAppBar(
+                    title = {
+                        Text(text = title)
+                    },
+                    navigationIcon = {
+                        NavigationIcon(onClick = onNavigationIconClick)
+                    },
+                    actions = {
+                        TopBarActions(
+                            onSettingsActionClick = onSettingsActionClick,
+                            onRefreshActionClick = onRefreshActionClick
+                        )
+                    }
                 )
 
-                Spacer(modifier = Modifier.width(50.dp))
-
-                Column {
-                    WordIndicator(
-                        word = word,
-                        maxRating = maxRating
+                LinearProgressIndicator(
+                    progress = { progress / 100 },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+    ) { innerPadding ->
+        Box {
+            Column(modifier = Modifier.padding(innerPadding)) {
+                Row(
+                    modifier = Modifier
+                        .weight(0.2f)
+                        .padding(10.dp)
+                ) {
+                    AutoSizeText(
+                        text = if (!reversed) word.name else word.translation,
+                        maxFontSize = 24.sp,
+                        minFontSize = 16.sp,
+                        modifier = Modifier.weight(1f)
                     )
 
-                    SessionOptions(
-                        enabled = !ended && translations.values.all { it == TranslationState.None },
-                        difficult = word.difficult,
-                        onLearnedClick = onLearnedClick,
-                        onDifficultClick = onDifficultClick
-                    )
+                    Spacer(modifier = Modifier.width(50.dp))
+
+                    Column {
+                        WordIndicator(
+                            word = word,
+                            maxRating = maxRating
+                        )
+
+                        SessionOptions(
+                            enabled = !ended && translations.values.all { it == TranslationState.None },
+                            difficult = word.difficult,
+                            onLearnedClick = onLearnedClick,
+                            onDifficultClick = onDifficultClick
+                        )
+                    }
+                }
+
+                Box(
+                    modifier = Modifier
+                        .weight(0.8f)
+                        .fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (!loading) {
+                        TranslationsGrid(
+                            reversed = reversed,
+                            translations = translations,
+                            getWord = getWord,
+                            ended = ended,
+                            onTranslationClick = onAnswer,
+                            onTranslationLongClick = onTranslationLongClick
+                        )
+                    } else {
+                        CircularProgressIndicator()
+                    }
                 }
             }
 
-            Box(
-                modifier = Modifier
-                    .weight(0.8f)
-                    .fillMaxWidth(),
-                contentAlignment = Alignment.Center
-            ) {
-                if (!loading) {
-                    TranslationsGrid(
-                        reversed = reversed,
-                        translations = translations,
-                        getWord = getWord,
-                        ended = ended,
-                        onTranslationClick = onAnswer,
-                        onTranslationLongClick = onTranslationLongClick
-                    )
-                } else {
-                    CircularProgressIndicator()
-                }
+            if (ended) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.6f))
+                        .padding(innerPadding) // Apply padding only after background set!
+                )
             }
         }
     }

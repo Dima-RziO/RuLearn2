@@ -4,11 +4,9 @@ import android.media.MediaPlayer
 import android.speech.tts.TextToSpeech
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -20,7 +18,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.launch
 import ru.dimarzio.rulearn2.compose.SessionContainer
 import ru.dimarzio.rulearn2.compose.screens.sessions.tests.TypingTest
 import ru.dimarzio.rulearn2.models.Word
@@ -57,14 +54,16 @@ fun TypingReview(
     ended: Boolean,
     onSettingsActionClick: () -> Unit
 ) {
-    val scaffoldState = rememberBottomSheetScaffoldState()
     val navController = rememberNavController()
-    val coroutineScope = rememberCoroutineScope()
-
     val context = LocalContext.current
 
     SessionContainer(
-        scaffoldState = scaffoldState,
+        onBottomSheetCollapsed = {
+            if (ended) {
+                onNavigationIconClick()
+            }
+            ended
+        },
         label = repeatedWords.size.toString() + " shown",
         words = repeatedWords,
         player = player,
@@ -73,12 +72,9 @@ fun TypingReview(
         onWordRemoved = onWordRemoved,
         onWordUpdated = onWordUpdated,
         onWordClick = { id ->
-            coroutineScope.launch {
-                scaffoldState.bottomSheetState.partialExpand()
-            }
             navController.navigate(SessionRoutes.Word.route, "id" to id)
         }
-    ) { innerPadding ->
+    ) { innerPadding, onBottomSheetExpanded ->
         NavHost(
             navController = navController,
             startDestination = SessionRoutes.TypingTest.route,
@@ -86,8 +82,8 @@ fun TypingReview(
         ) {
             composable(SessionRoutes.TypingTest.route) {
                 val typingTestViewModel = viewModel<TypingTestViewModel>()
-
                 val currentEnded by rememberUpdatedState(ended)
+
                 LaunchedEffect(Unit) {
                     navigationEvents.collect {
                         if (!currentEnded) {
@@ -201,11 +197,11 @@ fun TypingReview(
                 }
             }
         }
-    }
 
-    LaunchedEffect(key1 = ended) {
-        if (ended) {
-            scaffoldState.bottomSheetState.expand()
+        LaunchedEffect(key1 = ended) {
+            if (ended) {
+                onBottomSheetExpanded()
+            }
         }
     }
 }

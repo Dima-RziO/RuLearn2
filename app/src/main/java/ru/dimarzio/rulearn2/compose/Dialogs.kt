@@ -486,9 +486,9 @@ fun AboutDialog(onDismissRequest: () -> Unit) {
         text = {
             Text(
                 text = "Changelog:\n" +
-                        "• The audio now plays upon entering NewWord screen\n" +
-                        "• The bottom sheet area now dims at the end of the session\n" +
-                        "• General bug fixes and other improvements"
+                        "• The content now dims when bottom sheet is expanded\n" +
+                        "• Bottom sheet now collapses on content click\n" +
+                        "• Collapsing bottom sheet now closes session screen"
             )
         }
     )

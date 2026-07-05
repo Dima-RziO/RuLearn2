@@ -1,7 +1,6 @@
 package ru.dimarzio.rulearn2.compose.screens.sessions.tests
 
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -90,9 +89,8 @@ fun GuessingTest(
                     modifier = Modifier.fillMaxWidth()
                 )
             }
-        }
-    ) { innerPadding ->
-        Box {
+        },
+        content = { innerPadding ->
             Column(modifier = Modifier.padding(innerPadding)) {
                 Row(
                     modifier = Modifier
@@ -143,17 +141,8 @@ fun GuessingTest(
                     }
                 }
             }
-
-            if (ended) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.6f))
-                        .padding(innerPadding) // Apply padding only after background set!
-                )
-            }
         }
-    }
+    )
 }
 
 @Composable

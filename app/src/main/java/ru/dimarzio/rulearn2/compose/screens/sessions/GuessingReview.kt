@@ -4,11 +4,9 @@ import android.media.MediaPlayer
 import android.speech.tts.TextToSpeech
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -20,7 +18,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.launch
 import ru.dimarzio.rulearn2.compose.SessionContainer
 import ru.dimarzio.rulearn2.compose.screens.Word
 import ru.dimarzio.rulearn2.compose.screens.sessions.tests.GuessingTest
@@ -61,13 +58,15 @@ fun GuessingReview(
     onSettingsActionClick: () -> Unit
 ) {
     val navController = rememberNavController()
-    val scaffoldState = rememberBottomSheetScaffoldState()
-    val coroutineScope = rememberCoroutineScope()
-
     val context = LocalContext.current
 
     SessionContainer(
-        scaffoldState = scaffoldState,
+        onBottomSheetCollapsed = {
+            if (ended) {
+                onNavigationIconClick()
+            }
+            ended
+        },
         label = repeatedWords.size.toString() + " shown",
         words = repeatedWords,
         player = player,
@@ -76,12 +75,9 @@ fun GuessingReview(
         onWordRemoved = onWordRemoved,
         onWordUpdated = onWordUpdated,
         onWordClick = { id ->
-            coroutineScope.launch {
-                scaffoldState.bottomSheetState.partialExpand()
-            }
             navController.navigate(SessionRoutes.Word.route, "id" to id)
         }
-    ) { innerPadding ->
+    ) { innerPadding, onBottomSheetExpanded ->
         NavHost(
             navController = navController,
             startDestination = SessionRoutes.GuessingTest.route,
@@ -192,11 +188,11 @@ fun GuessingReview(
                 }
             }
         }
-    }
 
-    LaunchedEffect(key1 = ended) {
-        if (ended) {
-            scaffoldState.bottomSheetState.expand()
+        LaunchedEffect(key1 = ended) {
+            if (ended) {
+                onBottomSheetExpanded()
+            }
         }
     }
 }

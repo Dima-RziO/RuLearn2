@@ -12,8 +12,8 @@ android {
         applicationId = "ru.dimarzio.rulearn2"
         minSdk = 26
         targetSdk = 35
-        versionCode = 42
-        versionName = "3.0.7-RC5"
+        versionCode = 43
+        versionName = "3.1.0-RC6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

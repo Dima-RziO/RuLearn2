@@ -6,10 +6,8 @@ import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -20,7 +18,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.launch
 import ru.dimarzio.rulearn2.compose.SessionContainer
 import ru.dimarzio.rulearn2.compose.screens.sessions.tests.GuessingTest
 import ru.dimarzio.rulearn2.compose.screens.sessions.tests.NewWord
@@ -65,14 +62,16 @@ fun LearnNewWords(
     onRefreshRequested: () -> Unit,
     ended: Boolean
 ) {
-    val scaffoldState = rememberBottomSheetScaffoldState()
     val navController = rememberNavController()
-    val coroutineScope = rememberCoroutineScope()
-
     val context = LocalContext.current
 
     SessionContainer(
-        scaffoldState = scaffoldState,
+        onBottomSheetCollapsed = {
+            if (ended) {
+                onNavigationIconClick()
+            }
+            ended
+        },
         label = learnedWords.size.toString() + " learned",
         words = learnedWords,
         player = player,
@@ -81,12 +80,9 @@ fun LearnNewWords(
         onWordRemoved = onWordRemoved,
         onWordUpdated = onWordUpdated,
         onWordClick = { id ->
-            coroutineScope.launch {
-                scaffoldState.bottomSheetState.partialExpand()
-            }
             navController.navigate(SessionRoutes.Word.route, "id" to id)
         }
-    ) { innerPadding ->
+    ) { innerPadding, onBottomSheetExpanded ->
         NavHost(
             navController = navController,
             startDestination = SessionRoutes.NewWord.route,
@@ -317,11 +313,11 @@ fun LearnNewWords(
                 }
             }
         }
-    }
 
-    LaunchedEffect(key1 = ended) {
-        if (ended) {
-            scaffoldState.bottomSheetState.expand()
+        LaunchedEffect(key1 = ended) {
+            if (ended) {
+                onBottomSheetExpanded()
+            }
         }
     }
 }

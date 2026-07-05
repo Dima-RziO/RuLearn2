@@ -1,12 +1,9 @@
 package ru.dimarzio.rulearn2.compose.screens.sessions.tests
 
 import android.speech.tts.TextToSpeech
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -26,7 +23,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.vectorResource
@@ -112,52 +108,41 @@ fun NewWord(
             )
         }
     ) { innerPadding ->
-        Box {
-            Column(modifier = Modifier.padding(innerPadding)) {
-                Row(modifier = Modifier.padding(10.dp)) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        AutoSizeText(
-                            text = word.name,
-                            maxFontSize = 24.sp,
-                            minFontSize = 16.sp,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
-                        )
+        Column(modifier = Modifier.padding(innerPadding)) {
+            Row(modifier = Modifier.padding(10.dp)) {
+                Column(modifier = Modifier.weight(1f)) {
+                    AutoSizeText(
+                        text = word.name,
+                        maxFontSize = 24.sp,
+                        minFontSize = 16.sp,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
 
-                        AutoSizeText(
-                            text = word.translation,
-                            maxFontSize = 16.sp,
-                            minFontSize = 12.sp,
-                            maxLines = 12,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(50.dp))
-
-                    Column {
-                        WordIndicator(
-                            word = word,
-                            maxRating = maxRating
-                        )
-
-                        SessionOptions(
-                            enabled = !ended,
-                            difficult = word.difficult,
-                            onLearnedClick = onLearnedClick,
-                            onDifficultClick = onDifficultClick
-                        )
-                    }
+                    AutoSizeText(
+                        text = word.translation,
+                        maxFontSize = 16.sp,
+                        minFontSize = 12.sp,
+                        maxLines = 12,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
-            }
 
-            if (ended) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.6f))
-                        .padding(innerPadding) // Apply padding only after background set!
-                )
+                Spacer(modifier = Modifier.width(50.dp))
+
+                Column {
+                    WordIndicator(
+                        word = word,
+                        maxRating = maxRating
+                    )
+
+                    SessionOptions(
+                        enabled = !ended,
+                        difficult = word.difficult,
+                        onLearnedClick = onLearnedClick,
+                        onDifficultClick = onDifficultClick
+                    )
+                }
             }
         }
     }

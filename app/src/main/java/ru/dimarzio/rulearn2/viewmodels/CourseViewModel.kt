@@ -139,8 +139,7 @@ class CourseViewModel(
                             current.copy(
                                 total = current.total + if (!word.skip) 1 else 0,
                                 learned = current.learned + if (word.learned && !word.skip) 1 else 0,
-                                toRepeat = current.toRepeat + if (word.isRepeat) 1 else 0,
-                                difficult = current.difficult + if (word.learned) 1 else 0
+                                toRepeat = current.toRepeat + if (word.isRepeat) 1 else 0
                             )
                         }
                 }
@@ -203,10 +202,14 @@ class CourseViewModel(
 
         val old = words.value[id]
 
-        _words.value = _words.value.replaceValues(
-            with = word,
-            predicate = { (i, _) -> id == i }
-        )
+        if (id in _words.value) {
+            _words.value = _words.value.replaceValues(
+                with = word,
+                predicate = { (i, _) -> id == i }
+            )
+        } else {
+            _words.value += id to word
+        }
 
         searchResults = searchResults.replaceValues(
             with = word,
@@ -243,16 +246,24 @@ class CourseViewModel(
                 predicate = { (name, _) -> name == word.level }
             )
         } else {
-            _levels.value = _levels.value.replaceValuesCompat(
-                with = { (_, level) ->
-                    level.copy(
-                        total = if (!word.skip) level.total + 1 else level.total,
-                        toRepeat = if (word.isRepeat) level.toRepeat + 1 else level.toRepeat,
-                        learned = if (word.learned) level.learned + 1 else level.learned,
-                    )
-                },
-                predicate = { (name, _) -> name == word.level }
-            )
+            if (word.level in _levels.value) {
+                _levels.value = _levels.value.replaceValuesCompat(
+                    with = { (_, level) ->
+                        level.copy(
+                            total = if (!word.skip) level.total + 1 else level.total,
+                            toRepeat = if (word.isRepeat) level.toRepeat + 1 else level.toRepeat,
+                            learned = if (word.learned) level.learned + 1 else level.learned,
+                        )
+                    },
+                    predicate = { (name, _) -> name == word.level }
+                )
+            } else {
+                _levels.value += word.level to Level(
+                    total = if (!word.skip) 1 else 0,
+                    toRepeat = if (word.isRepeat) 1 else 0,
+                    learned = if (word.learned) 1 else 0,
+                )
+            }
 
             if (old != null) { // Update previous level
                 _levels.value = _levels.value.replaceValuesCompat(

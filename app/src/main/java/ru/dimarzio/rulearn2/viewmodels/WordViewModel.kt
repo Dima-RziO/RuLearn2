@@ -37,27 +37,27 @@ class WordViewModel(
     val modified by derivedStateOf { newWord != oldWord }
 
     val levelsForName by derivedStateOf {
-        courseWords.values
-            .distinctBy(Word::level)
-            .mapNotNull { word ->
-                if (word.normalizedName == newWord.normalizedName && id != newId) {
+        courseWords.entries
+            .mapNotNull { (id, word) ->
+                if (word.normalizedName == newWord.normalizedName && id != newId) { // ??
                     word.level
                 } else {
                     null
                 }
             }
+            .distinct()
     }
 
     val levelsForTranslation by derivedStateOf {
-        courseWords.values
-            .distinctBy(Word::level)
-            .mapNotNull { word ->
-                if (word.translation == newWord.translation && id != newId) {
+        courseWords.entries
+            .mapNotNull { (id, word) ->
+                if (word.translation == newWord.translation && id != newId) { // ??
                     word.level
                 } else {
                     null
                 }
             }
+            .distinct()
     }
 
     fun updateWord(word: Word) {

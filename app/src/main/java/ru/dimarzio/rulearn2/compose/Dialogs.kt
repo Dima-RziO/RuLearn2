@@ -486,9 +486,7 @@ fun AboutDialog(onDismissRequest: () -> Unit) {
         text = {
             Text(
                 text = "Changelog:\n" +
-                        "• The content now dims when bottom sheet is expanded\n" +
-                        "• Bottom sheet now collapses on content click\n" +
-                        "• Collapsing bottom sheet now closes session screen"
+                        "• General bug fixes"
             )
         }
     )

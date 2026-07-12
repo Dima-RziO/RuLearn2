@@ -175,6 +175,31 @@ class CoursesViewModel(
         }
     }
 
+    fun exportLearned(context: Context, uri: Uri, course: String) {
+        viewModelScope.launch {
+            _exportProgress.value = 0f
+
+            val result = withContext(Dispatchers.IO) {
+                runCatching {
+                    val lines = database.exportLearned(course)
+                    context.contentResolver.openOutputStream(uri)?.use { os ->
+                        os.bufferedWriter().use { writer ->
+                            lines.forEach { line ->
+                                writer.appendLine(line)
+                            }
+                        }
+                    }
+                }
+            }
+
+            _exportProgress.value = null
+
+            result
+                .onFailure(handler::onErrorHandled)
+                .onSuccess { handler.onMessageReceived("Success.") }
+        }
+    }
+
     fun deleteCourse(name: String, folder: File) {
         viewModelScope.launch {
             _deleteProgress.value = 0f

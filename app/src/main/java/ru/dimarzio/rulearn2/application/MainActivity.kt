@@ -182,8 +182,8 @@ fun CoursesRoute(
     )
 
     var exportCourse by remember { mutableStateOf(null as String?) }
+    var learnedTxt by remember { mutableStateOf(null as String?) }
     var iconCourse by remember { mutableStateOf(null as String?) }
-    var onlyLearned by remember { mutableStateOf(false) }
 
     val importLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
@@ -196,7 +196,7 @@ fun CoursesRoute(
     ) { uri ->
         uri?.let {
             val factory = if (exportCourse != null) {
-                CourseFactory(exportCourse!!, onlyLearned)
+                CourseFactory(exportCourse!!)
             } else {
                 CoursesFactory(coursesViewModel.sortedCourses.keys)
             }
@@ -214,6 +214,14 @@ fun CoursesRoute(
         }
     }
 
+    val learnedTxtLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("text/plain")
+    ) { uri ->
+        if (uri != null && learnedTxt != null) {
+            coursesViewModel.exportLearned(context, uri, learnedTxt!!)
+        }
+    }
+
     val iconLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
@@ -223,14 +231,17 @@ fun CoursesRoute(
     }
 
     Courses(
-        onExportCsvClick = { course, learned ->
+        onExportCsvClick = { course ->
             exportCourseLauncher.launch(course?.let { "$course.zip" } ?: "rulearn.zip")
 
             exportCourse = course
-            onlyLearned = learned
         },
         onExportDatabaseClick = {
             exportDatabaseLauncher.launch("rulearn.zip")
+        },
+        onLearnedTxtClick = { course ->
+            learnedTxtLauncher.launch("$course.txt")
+            learnedTxt = course
         },
         endpoints = coursesViewModel.p2p.endpoints,
         connectedId = coursesViewModel.p2p.connectedId,

@@ -65,8 +65,9 @@ import kotlin.math.roundToInt
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun Courses(
-    onExportCsvClick: (String?, Boolean) -> Unit,
+    onExportCsvClick: (String?) -> Unit,
     onExportDatabaseClick: () -> Unit,
+    onLearnedTxtClick: (String) -> Unit,
     endpoints: Map<String, String>,
     connectedId: String?,
     connectingId: String?,
@@ -124,9 +125,9 @@ fun Courses(
                         },
                         startDiscovery = startDiscovery,
                         stopDiscovery = stopDiscovery,
-                        onExportActionClick = { csvMethod: Boolean ->
-                            if (csvMethod) {
-                                onExportCsvClick(null, false)
+                        onExportActionClick = { csv: Boolean ->
+                            if (csv) {
+                                onExportCsvClick(null)
                             } else {
                                 onExportDatabaseClick()
                             }
@@ -222,8 +223,8 @@ fun Courses(
             modifier = Modifier.padding(innerPadding),
             courses = courses,
             onCourseClick = onCourseClick,
-            onExportCourseClick = { course -> onExportCsvClick(course, false) },
-            onExportLearnedClick = { course -> onExportCsvClick(course, true) },
+            onExportCourseClick = { course -> onExportCsvClick(course) },
+            onLearnedTxtClick = { course -> onLearnedTxtClick(course) },
             onDeleteCourseClick = onDeleteCourseClick,
             onRenameClick = onRenameClick,
             modelLoaded = modelLoaded,
@@ -294,13 +295,13 @@ private fun TopBarActions(
 ) {
     val context = LocalContext.current
 
-    var showExportMethodDialog by remember { mutableStateOf(false) }
+    var showExportToDialog by remember { mutableStateOf(false) }
     var showReplicateDialog by remember { mutableStateOf(false) }
     var showSQLiteQueryDialog by remember { mutableStateOf(false) }
 
-    if (showExportMethodDialog) {
-        ExportMethodDialog(
-            onDismissRequest = { showExportMethodDialog = false },
+    if (showExportToDialog) {
+        ExportToDialog(
+            onDismissRequest = { showExportToDialog = false },
             onConfirmation = onExportActionClick
         )
     }
@@ -352,7 +353,7 @@ private fun TopBarActions(
     AppBarActions(
         actions = {
             Action(exportIcon, "Export all courses") {
-                showExportMethodDialog = true
+                showExportToDialog = true
             }
             Action(transferIcon, "Replicate database", discoveryLauncher)
         },
@@ -426,12 +427,12 @@ private fun RenameDialog(
 }
 
 @Composable
-private fun ExportMethodDialog(
+private fun ExportToDialog(
     onDismissRequest: () -> Unit,
     onConfirmation: (Boolean) -> Unit
 ) {
-    val csvItem = "CSV Method"
-    val dbItem = "DB Method"
+    val csvItem = ".csv"
+    val dbItem = ".db"
 
     SingleChoiceDialog(
         onDismissRequest = onDismissRequest,
@@ -442,7 +443,7 @@ private fun ExportMethodDialog(
                 Text(text = "Cancel")
             }
         },
-        title = "Choose export method",
+        title = "Export to",
         items = setOf(csvItem, dbItem),
         selected = csvItem
     )
@@ -572,7 +573,7 @@ private fun CoursesList(
     courses: Map<String, Course>,
     onCourseClick: (String) -> Unit,
     onExportCourseClick: (String) -> Unit,
-    onExportLearnedClick: (String) -> Unit,
+    onLearnedTxtClick: (String) -> Unit,
     onDeleteCourseClick: (String) -> Unit,
     onRenameClick: (String, String) -> Unit,
     modelLoaded: (String) -> Boolean,
@@ -585,7 +586,7 @@ private fun CoursesList(
                 course = course,
                 onClick = { onCourseClick(name) },
                 onExportClick = { onExportCourseClick(name) },
-                onExportLearnedClick = { onExportLearnedClick(name) },
+                onLearnedTxtClick = { onLearnedTxtClick(name) },
                 onDeleteClick = { onDeleteCourseClick(name) },
                 onRenameClick = { to -> onRenameClick(name, to) },
                 modelLoaded = modelLoaded(name),
@@ -601,7 +602,7 @@ private fun CoursesListItem(
     course: Course,
     onClick: () -> Unit,
     onExportClick: () -> Unit,
-    onExportLearnedClick: () -> Unit,
+    onLearnedTxtClick: () -> Unit,
     onDeleteClick: () -> Unit,
     onRenameClick: (String) -> Unit,
     modelLoaded: Boolean,
@@ -746,11 +747,11 @@ private fun CoursesListItem(
 
                         DropdownMenuItem(
                             text = {
-                                Text(text = "Only learned")
+                                Text(text = "Only learned .txt")
                             },
                             onClick = {
                                 expandedSub = false
-                                onExportLearnedClick()
+                                onLearnedTxtClick()
                             }
                         )
                     }

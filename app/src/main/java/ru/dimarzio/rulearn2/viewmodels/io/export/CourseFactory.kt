@@ -4,12 +4,8 @@ import ru.dimarzio.rulearn2.application.Database
 import ru.dimarzio.rulearn2.utils.ImageFile
 import java.io.File
 
-class CourseFactory(private val course: String, private val onlyLearned: Boolean) : ExportFactory {
-    override fun make(
-        root: String,
-        folder: File,
-        database: Database
-    ): ExportComponent {
+class CourseFactory(private val course: String) : ExportFactory {
+    override fun make(root: String, folder: File, database: Database): ExportComponent {
         val composite = ExportComposite(root)
         val icon = ImageFile("$folder/icons/$course")
 
@@ -23,7 +19,7 @@ class CourseFactory(private val course: String, private val onlyLearned: Boolean
         composite.add(Path(folder, "$folder/tflite/$course.tflite"))
         composite.add(Path(folder, "$folder/tflite/$course.ckpt"))
 
-        composite.add(Course(database, course, onlyLearned))
+        composite.add(Course(database, course))
 
         return composite
     }

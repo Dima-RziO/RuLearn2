@@ -112,8 +112,10 @@ fun Word(
         topBar = {
             TopAppBar(
                 title = {
+                    val title = if (modified) "*$id" else id.toString()
+
                     Text(
-                        text = if (modified) "*$id" else id.toString(),
+                        text = "$title (${word.successRate})",
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )

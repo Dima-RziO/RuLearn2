@@ -6,13 +6,23 @@ import ru.dimarzio.rulearn2.application.Database
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
-open class Table(private val database: Database, name: String) : ExportComponent(name) { // Leaf
+open class Table(
+    private val database: Database,
+    name: String,
+    private val onlyLearned: Boolean = false
+) : ExportComponent(name) { // Leaf
     @OptIn(KotlinCsvExperimental::class)
     override fun export(zos: ZipOutputStream) {
         val entry = ZipEntry("$name.csv")
         zos.putNextEntry(entry)
 
+        val rows = if (onlyLearned) {
+            database.exportLearned(name)
+        } else {
+            database.exportTable(name)
+        }
+
         // TODO: Track the progress
-        csvWriter().openAndGetRawWriter(zos).writeRows(database.exportTable(name))
+        csvWriter().openAndGetRawWriter(zos).writeRows(rows)
     }
 }

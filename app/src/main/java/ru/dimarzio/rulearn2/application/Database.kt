@@ -270,6 +270,39 @@ class Database(private val folder: File) : AutoCloseable { // Not singleton!
         }
     }
 
+    fun exportLearned(table: String): List<List<String?>> {
+        val columns = "'$table'.id, word, translation, audio, level"
+        val columnsStat = "'$table'.id, accessed, skip, difficult, rating, success_rate"
+        val columnsMl = "'$table'.id, n_repeat, sum_correct, cur_rating, s_lapsed, type_repeat, hint_frac"
+
+        val stat = table.removeSuffix("_ml") + "_stat"
+
+        val wordsQuery = "SELECT $columns FROM '$table' " +
+                "LEFT JOIN '$stat' ON '$table'.id = '$stat'.id " +
+                "WHERE rating >= 10 AND skip = 0"
+
+        val statQuery = "SELECT $columnsStat FROM '$table' WHERE rating >= 10 AND skip = 0"
+
+        val mlQuery = "SELECT $columnsMl FROM '$table' " +
+                "LEFT JOIN '$stat' ON '$table'.id = '$stat'.id " +
+                "WHERE rating >= 10 AND skip = 0"
+
+        return query(
+            when {
+                table.endsWith("_stat") -> statQuery
+                table.endsWith("_ml") -> mlQuery
+                else -> wordsQuery
+            }
+        ) {
+            List(count) {
+                moveToNext()
+                List(columnCount) { index ->
+                    getStringOrNull(index).orEmpty()
+                }
+            }
+        }
+    }
+
     fun deleteLevel(course: String, level: String) {
         database.delete("'$course'", "level = '$level'", null)
     }

@@ -12,7 +12,7 @@ class DatabaseFactory : ExportFactory {
         composite.add(Directory(folder, "$folder/icons/"))
         composite.add(Directory(folder, "$folder/tflite/"))
 
-        composite.add(Path(database.path.path))
+        composite.add(Path(folder, database.path.path))
 
         return composite
     }

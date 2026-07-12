@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -43,6 +44,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -63,7 +65,7 @@ import kotlin.math.roundToInt
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun Courses(
-    onExportCsvClick: (String?) -> Unit,
+    onExportCsvClick: (String?, Boolean) -> Unit,
     onExportDatabaseClick: () -> Unit,
     endpoints: Map<String, String>,
     connectedId: String?,
@@ -124,7 +126,7 @@ fun Courses(
                         stopDiscovery = stopDiscovery,
                         onExportActionClick = { csvMethod: Boolean ->
                             if (csvMethod) {
-                                onExportCsvClick(null)
+                                onExportCsvClick(null, false)
                             } else {
                                 onExportDatabaseClick()
                             }
@@ -220,7 +222,8 @@ fun Courses(
             modifier = Modifier.padding(innerPadding),
             courses = courses,
             onCourseClick = onCourseClick,
-            onExportCourseClick = onExportCsvClick,
+            onExportCourseClick = { course -> onExportCsvClick(course, false) },
+            onExportLearnedClick = { course -> onExportCsvClick(course, true) },
             onDeleteCourseClick = onDeleteCourseClick,
             onRenameClick = onRenameClick,
             modelLoaded = modelLoaded,
@@ -569,6 +572,7 @@ private fun CoursesList(
     courses: Map<String, Course>,
     onCourseClick: (String) -> Unit,
     onExportCourseClick: (String) -> Unit,
+    onExportLearnedClick: (String) -> Unit,
     onDeleteCourseClick: (String) -> Unit,
     onRenameClick: (String, String) -> Unit,
     modelLoaded: (String) -> Boolean,
@@ -581,6 +585,7 @@ private fun CoursesList(
                 course = course,
                 onClick = { onCourseClick(name) },
                 onExportClick = { onExportCourseClick(name) },
+                onExportLearnedClick = { onExportLearnedClick(name) },
                 onDeleteClick = { onDeleteCourseClick(name) },
                 onRenameClick = { to -> onRenameClick(name, to) },
                 modelLoaded = modelLoaded(name),
@@ -596,12 +601,14 @@ private fun CoursesListItem(
     course: Course,
     onClick: () -> Unit,
     onExportClick: () -> Unit,
+    onExportLearnedClick: () -> Unit,
     onDeleteClick: () -> Unit,
     onRenameClick: (String) -> Unit,
     modelLoaded: Boolean,
     onChangeIconClick: () -> Unit
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
+    var expandedSub by remember { mutableStateOf(false) }
 
     var showRenameDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -686,31 +693,67 @@ private fun CoursesListItem(
                             contentDescription = "More"
                         )
                     }
-                }
 
-                DropdownMenu(
-                    expanded = menuExpanded,
-                    onDismissRequest = { menuExpanded = false }
-                ) {
-                    DropdownMenuItem(
-                        text = {
-                            Text(text = "Export")
-                        },
-                        onClick = {
-                            menuExpanded = false
-                            onExportClick()
-                        }
-                    )
+                    DropdownMenu(
+                        expanded = menuExpanded,
+                        onDismissRequest = { menuExpanded = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = {
+                                Text(text = "Export")
+                            },
+                            onClick = {
+                                expandedSub = true
+                            },
+                            trailingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.PlayArrow,
+                                    contentDescription = "Open menu"
+                                )
+                            }
+                        )
 
-                    DropdownMenuItem(
-                        text = {
-                            Text(text = "Change icon")
-                        },
-                        onClick = {
-                            menuExpanded = false
-                            onChangeIconClick()
-                        }
-                    )
+
+                        DropdownMenuItem(
+                            text = {
+                                Text(text = "Change icon")
+                            },
+                            onClick = {
+                                menuExpanded = false
+                                expandedSub = false
+
+                                onChangeIconClick()
+                            }
+                        )
+                    }
+
+                    DropdownMenu(
+                        expanded = expandedSub,
+                        onDismissRequest = { expandedSub = false },
+                        offset = DpOffset(x = 16.dp, y = 48.dp)
+                    ) {
+                        DropdownMenuItem(
+                            text = {
+                                Text(text = "Export")
+                            },
+                            onClick = {
+                                menuExpanded = false
+                                expandedSub = false
+
+                                onExportClick()
+                            }
+                        )
+
+                        DropdownMenuItem(
+                            text = {
+                                Text(text = "Only learned")
+                            },
+                            onClick = {
+                                expandedSub = false
+                                onExportLearnedClick()
+                            }
+                        )
+                    }
                 }
             }
         )

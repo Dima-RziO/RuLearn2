@@ -183,6 +183,7 @@ fun CoursesRoute(
 
     var exportCourse by remember { mutableStateOf(null as String?) }
     var iconCourse by remember { mutableStateOf(null as String?) }
+    var onlyLearned by remember { mutableStateOf(false) }
 
     val importLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
@@ -195,7 +196,7 @@ fun CoursesRoute(
     ) { uri ->
         uri?.let {
             val factory = if (exportCourse != null) {
-                CourseFactory(exportCourse!!)
+                CourseFactory(exportCourse!!, onlyLearned)
             } else {
                 CoursesFactory(coursesViewModel.sortedCourses.keys)
             }
@@ -222,9 +223,11 @@ fun CoursesRoute(
     }
 
     Courses(
-        onExportCsvClick = { course ->
+        onExportCsvClick = { course, learned ->
             exportCourseLauncher.launch(course?.let { "$course.zip" } ?: "rulearn.zip")
+
             exportCourse = course
+            onlyLearned = learned
         },
         onExportDatabaseClick = {
             exportDatabaseLauncher.launch("rulearn.zip")

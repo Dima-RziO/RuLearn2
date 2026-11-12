@@ -8,6 +8,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -147,10 +151,23 @@ fun DifficultWords(
                     }
                 )
 
+                var effectLaunched by rememberSaveable { mutableStateOf(false) }
+
                 LaunchedEffect(Unit) {
-                    guessingTestViewModel.generateTranslations(currentId, currentWord, courseWords)
+                    if (!effectLaunched) {
+                        effectLaunched = true
+
+                        guessingTestViewModel.conceal(true)
+                        guessingTestViewModel.generateTranslations(
+                            currentId,
+                            currentWord,
+                            courseWords
+                        )
+                    }
+
                     navigationEvents.collect { (route, word) ->
                         if (route == SessionRoutes.GuessingTest.route) {
+                            guessingTestViewModel.conceal(true)
                             guessingTestViewModel.reverse()
                             guessingTestViewModel.generateTranslations(
                                 id = word.getId(),
@@ -169,6 +186,7 @@ fun DifficultWords(
                     onSettingsActionClick = onSettingsActionClick,
                     onRefreshActionClick = onRefreshRequested,
                     progress = progress,
+                    revealed = guessingTestViewModel.revealed,
                     reversed = guessingTestViewModel.reversed,
                     word = currentWord,
                     onLearnedClick = {
@@ -180,6 +198,7 @@ fun DifficultWords(
                         onWordUpdated(currentId, currentWord, new, currentState)
                     },
                     loading = guessingTestViewModel.loading,
+                    onRevealClick = { guessingTestViewModel.conceal(false) },
                     translations = guessingTestViewModel.translations,
                     getWord = getWord,
                     ended = ended,

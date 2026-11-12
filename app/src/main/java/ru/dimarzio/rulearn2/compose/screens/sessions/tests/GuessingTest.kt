@@ -1,6 +1,10 @@
 package ru.dimarzio.rulearn2.compose.screens.sessions.tests
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -26,6 +30,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -34,6 +39,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -54,11 +60,13 @@ fun GuessingTest(
     onRefreshActionClick: () -> Unit,
     onSettingsActionClick: () -> Unit,
     progress: Float,
+    revealed: Boolean,
     reversed: Boolean,
     word: Word,
     onLearnedClick: () -> Unit,
     onDifficultClick: (Boolean) -> Unit,
     loading: Boolean,
+    onRevealClick: () -> Unit,
     translations: Map<Int, TranslationState>,
     getWord: (Int) -> Word?,
     ended: Boolean,
@@ -121,23 +129,49 @@ fun GuessingTest(
                     }
                 }
 
+                val rotation = remember { Animatable(if (revealed) 180f else 0f) }
+
+                LaunchedEffect(revealed) {
+                    if (!revealed) {
+                        rotation.snapTo(0f)
+                    } else {
+                        rotation.animateTo(
+                            targetValue = 180f,
+                            animationSpec = tween(durationMillis = 500)
+                        )
+                    }
+                }
+
                 Box(
                     modifier = Modifier
                         .weight(0.8f)
-                        .fillMaxWidth(),
+                        .fillMaxWidth()
+                        .graphicsLayer {
+                            rotationY = rotation.value
+                            cameraDistance = 12f * density
+                        },
                     contentAlignment = Alignment.Center
                 ) {
-                    if (!loading) {
-                        TranslationsGrid(
-                            reversed = reversed,
-                            translations = translations,
-                            getWord = getWord,
-                            ended = ended,
-                            onTranslationClick = onAnswer,
-                            onTranslationLongClick = onTranslationLongClick
-                        )
+                    if (rotation.value > 90f) {
+                        Box(
+                            modifier = Modifier.graphicsLayer { rotationY = 180f },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (!loading) {
+                                TranslationsGrid(
+                                    reversed = reversed,
+                                    translations = translations,
+                                    getWord = getWord,
+                                    ended = ended,
+                                    onTranslationClick = onAnswer,
+                                    onTranslationLongClick = onTranslationLongClick
+                                )
+                            } else {
+                                CircularProgressIndicator()
+                            }
+                        }
                     } else {
-                        CircularProgressIndicator()
+                        TurnOverCard(onRevealClick)
                     }
                 }
             }
@@ -258,5 +292,23 @@ private fun TranslationsGrid(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun TurnOverCard(onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth(0.8f)
+            .clickable(onClick = onClick)
+    ) {
+        Text(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            text = "Tap to flip",
+            fontSize = 24.sp,
+            textAlign = TextAlign.Center
+        )
     }
 }

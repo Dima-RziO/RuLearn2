@@ -23,7 +23,7 @@ class ZIP(private val factory: ImportFactory, name: String) : ImportComposite(na
                 }
                 zis.closeEntry()
 
-                progress = total.toFloat() / `is`.available() // Should be opposite, idk how that works??
+                progress = (total - `is`.available()) / total.toFloat()
                 gofnotify()
             }
         }

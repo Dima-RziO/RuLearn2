@@ -13,22 +13,33 @@ class ReviewImp(courseWords: Map<Int, Word>, level: String?, limit: Int) : Sessi
             .associateTo(mutableMapOf(), Map.Entry<Int, Word>::toPair)
 
     private var currentWord = null as SessionWord?
+    private val traversed = mutableSetOf<Int>()
 
     override fun getProgress(): Float {
         return words.count { (_, word) -> !word.isRepeat } percentageFrom words.size
     }
 
     override fun getTraversed(): Map<Int, Word> {
-        return words.filterNot { (_, word) -> word.isRepeat }
+        return traversed.associateWith { id -> words[id]!! }
     }
 
     override fun neglect(id: Int) {
         words.remove(id)
+        traversed.remove(id)
+
         gofnotify()
     }
 
     override fun emend(word: SessionWord) {
-        words[word.getId()] = word.getWord()
+        val realWord = word.getWord()
+        words[word.getId()] = realWord
+
+        if (!realWord.isRepeat) {
+            traversed.add(word.getId())
+        } else {
+            traversed.remove(word.getId())
+        }
+
         gofnotify()
     }
 

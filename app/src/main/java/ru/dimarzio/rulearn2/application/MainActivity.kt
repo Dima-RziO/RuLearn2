@@ -583,7 +583,9 @@ fun GuessingReviewRoute(
                 },
                 onWordUpdated = { id, old, new ->
                     reviewViewModel.updateWord(WordAdapter(id, new))
-                    reviewViewModel.next()
+                    if (old == reviewViewModel.currentWord?.getWord()) {
+                        reviewViewModel.next()
+                    }
 
                     levelViewModel?.updateWord(id, new)
                     courseViewModel.updateWord(id, new)
@@ -680,7 +682,9 @@ fun TypingReviewRoute(
                 },
                 onWordUpdated = { id, old, new ->
                     reviewViewModel.updateWord(WordAdapter(id, new))
-                    reviewViewModel.next()
+                    if (old == reviewViewModel.currentWord?.getWord()) {
+                        reviewViewModel.next()
+                    }
 
                     levelViewModel?.updateWord(id, new)
                     courseViewModel.updateWord(id, new)
@@ -763,7 +767,10 @@ fun LearnWordsRoute(
                 },
                 onWordUpdated = { id, old, new ->
                     learnWordsViewModel.updateWord(WordAdapter(id, new))
-                    learnWordsViewModel.next()
+
+                    if (old == learnWordsViewModel.currentWord?.getWord()) {
+                        learnWordsViewModel.next()
+                    }
 
                     levelViewModel?.updateWord(id, new)
                     courseViewModel.updateWord(id, new)
@@ -854,9 +861,11 @@ fun DifficultWordsRoute(
                 },
                 onWordUpdated = { id, old, new, state ->
                     val adapter = DifficultWordAdapter(DifficultWord(id, new, state))
-
                     difficultWordsViewModel.updateWord(adapter)
-                    difficultWordsViewModel.next()
+
+                    if (old == difficultWordsViewModel.currentWord?.getWord()) {
+                        difficultWordsViewModel.next()
+                    }
 
                     levelViewModel?.updateWord(id, new)
                     courseViewModel.updateWord(id, new)

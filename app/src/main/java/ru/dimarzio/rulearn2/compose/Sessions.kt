@@ -28,6 +28,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import ru.dimarzio.rulearn2.R
 import ru.dimarzio.rulearn2.viewmodels.PreferencesViewModel.Session
+import kotlin.enums.enumEntries
 
 @Composable
 private fun SessionsDialog(
@@ -58,7 +59,7 @@ private fun SessionsDialog(
             }
         },
         title = "Choose more modes",
-        items = enumValues<Session>().toSet(),
+        items = enumEntries<Session>().toSet(),
         selected = selectedMode,
         getLabel = { item ->
             when (item) {
@@ -135,29 +136,35 @@ fun Sessions(
 
             Spacer(modifier = Modifier.size(5.dp))
 
-            val number = when (selectedMode) {
+            val preferredMode = when {
+                toRepeatNumber > 0 -> selectedMode
+                difficultNumber > 0 -> Session.DifficultWords
+                else -> Session.LearnNewWords
+            }
+
+            val number = when (preferredMode) {
                 Session.LearnNewWords -> toLearnNumber
                 Session.DifficultWords -> difficultNumber
                 Session.TypingReview, Session.GuessingReview -> toRepeatNumber
             }
             ExtendedFloatingActionButton(
                 text = {
-                    Text(text = selectedMode.name + " ($number)")
+                    Text(text = preferredMode.name + " ($number)")
                 },
                 icon = {
                     Icon(
                         painter = painterResource(
-                            id = when (selectedMode) {
+                            id = when (preferredMode) {
                                 Session.LearnNewWords -> R.drawable.baseline_course_24
                                 Session.DifficultWords -> R.drawable.baseline_difficult_24
                                 Session.TypingReview -> R.drawable.baseline_keyboard_24
                                 Session.GuessingReview -> R.drawable.baseline_repeat_24
                             },
                         ),
-                        contentDescription = selectedMode.name
+                        contentDescription = preferredMode.name
                     )
                 },
-                onClick = when (selectedMode) {
+                onClick = when (preferredMode) {
                     Session.LearnNewWords -> onLearnNewWordsClick
                     Session.DifficultWords -> onDifficultWordsClick
                     Session.TypingReview -> onTypingReviewClick

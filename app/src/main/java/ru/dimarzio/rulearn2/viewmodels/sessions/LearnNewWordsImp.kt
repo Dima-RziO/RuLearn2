@@ -15,9 +15,10 @@ class LearnNewWordsImp(courseWords: Map<Int, Word>, level: String?, limit: Int) 
             .associateTo(mutableMapOf(), Map.Entry<Int, Word>::toPair)
 
     private var currentWord by mutableStateOf(null as SessionWord?)
+    private val traversed = mutableSetOf<Int>()
 
     override fun getTraversed(): Map<Int, Word> {
-        return words.filter { (_, word) -> word.learned || word.skip }
+        return traversed.associateWith { id -> words[id]!! }
     }
 
     override fun getProgress(): Float {
@@ -26,11 +27,21 @@ class LearnNewWordsImp(courseWords: Map<Int, Word>, level: String?, limit: Int) 
 
     override fun neglect(id: Int) {
         words.remove(id)
+        traversed.remove(id)
+
         gofnotify()
     }
 
     override fun emend(word: SessionWord) {
-        words[word.getId()] = word.getWord()
+        val realWord = word.getWord()
+        words[word.getId()] = realWord
+
+        if (realWord.learned || realWord.skip) {
+            traversed.add(word.getId())
+        } else {
+            traversed.remove(word.getId())
+        }
+
         gofnotify()
     }
 

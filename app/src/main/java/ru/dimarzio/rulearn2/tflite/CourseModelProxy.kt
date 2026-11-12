@@ -30,7 +30,8 @@ class CourseModelProxy( // GoF Proxy
     override fun predict(context: Features): Float? {
         val prediction = model?.predict(context)
         return prediction ?: if (context.repetitions != 0 && context.correctAnswers != 0) {
-            context.correctAnswers.toFloat() / context.repetitions
+            val multiplier = (1 - context.hintsFraction).coerceIn(0.1f..1f)
+            context.correctAnswers.toFloat() / context.repetitions * multiplier
         } else {
             1f
         }

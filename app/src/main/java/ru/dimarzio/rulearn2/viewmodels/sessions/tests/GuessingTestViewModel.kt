@@ -21,6 +21,8 @@ import java.util.Locale
 
 // Do NOT use private val
 class GuessingTestViewModel(private val handler: ErrorHandler) : ViewModel() {
+    var revealed by mutableStateOf(true)
+        private set
     var loading by mutableStateOf(false)
         private set
     var reversed by mutableStateOf(listOf(true, false).random())
@@ -147,5 +149,9 @@ class GuessingTestViewModel(private val handler: ErrorHandler) : ViewModel() {
 
     fun reverse() {
         reversed = listOf(true, false).random()
+    }
+
+    fun conceal(hidden: Boolean) {
+        revealed = !hidden
     }
 }

@@ -8,6 +8,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -139,8 +143,19 @@ fun LearnNewWords(
                     }
                 )
 
+                var effectLaunched by rememberSaveable { mutableStateOf(false) }
+
                 LaunchedEffect(Unit) {
-                    guessingTestViewModel.generateTranslations(currentId, currentWord, courseWords)
+                    if (!effectLaunched) {
+                        effectLaunched = true
+
+                        guessingTestViewModel.generateTranslations(
+                            currentId,
+                            currentWord,
+                            courseWords
+                        )
+                    }
+
                     navigationEvents.collect { (route, word) ->
                         if (route == SessionRoutes.GuessingTest.route) {
                             guessingTestViewModel.reverse()
@@ -161,6 +176,7 @@ fun LearnNewWords(
                     onSettingsActionClick = onSettingsActionClick,
                     onRefreshActionClick = onRefreshRequested,
                     progress = progress,
+                    revealed = guessingTestViewModel.revealed,
                     reversed = guessingTestViewModel.reversed,
                     word = currentWord,
                     onLearnedClick = {
@@ -170,6 +186,7 @@ fun LearnNewWords(
                         onWordUpdated(currentId, currentWord, currentWord.copy(difficult = it))
                     },
                     loading = guessingTestViewModel.loading,
+                    onRevealClick = { guessingTestViewModel.conceal(false) },
                     translations = guessingTestViewModel.translations,
                     getWord = getWord,
                     ended = ended,

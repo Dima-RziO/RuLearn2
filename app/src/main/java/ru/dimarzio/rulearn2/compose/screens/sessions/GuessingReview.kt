@@ -7,7 +7,10 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -17,6 +20,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import ru.dimarzio.rulearn2.compose.SessionContainer
 import ru.dimarzio.rulearn2.compose.screens.Word
@@ -93,11 +97,23 @@ fun GuessingReview(
                 )
 
                 val currentEnded by rememberUpdatedState(ended)
+                var effectLaunched by rememberSaveable { mutableStateOf(false) }
 
                 LaunchedEffect(Unit) {
-                    guessingTestViewModel.generateTranslations(currentId, currentWord, courseWords)
+                    if (!effectLaunched) {
+                        effectLaunched = true
+
+                        guessingTestViewModel.conceal(true)
+                        guessingTestViewModel.generateTranslations(
+                            currentId,
+                            currentWord,
+                            courseWords
+                        )
+                    }
+
                     navigationEvents.collect { (_, word) ->
                         if (!currentEnded) {
+                            guessingTestViewModel.conceal(true)
                             guessingTestViewModel.reverse()
                             guessingTestViewModel.generateTranslations(
                                 id = word.getId(),
@@ -114,6 +130,7 @@ fun GuessingReview(
                     onSettingsActionClick = onSettingsActionClick,
                     onRefreshActionClick = onRefreshRequested,
                     progress = progress,
+                    revealed = guessingTestViewModel.revealed,
                     reversed = guessingTestViewModel.reversed,
                     word = currentWord,
                     onLearnedClick = {
@@ -123,6 +140,7 @@ fun GuessingReview(
                         onWordUpdated(currentId, currentWord, currentWord.copy(difficult = it))
                     },
                     loading = guessingTestViewModel.loading,
+                    onRevealClick = { guessingTestViewModel.conceal(false) },
                     translations = guessingTestViewModel.translations,
                     getWord = getWord,
                     ended = ended,

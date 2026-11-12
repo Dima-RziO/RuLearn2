@@ -195,7 +195,8 @@ private fun InputField(
             if (errorMessage != null) {
                 Text(
                     text = errorMessage,
-                    color = MaterialTheme.colorScheme.error
+                    color = MaterialTheme.colorScheme.error,
+                    fontSize = 16.sp
                 )
             } else if (helperText != null) {
                 Text(text = helperText)

@@ -22,11 +22,10 @@ class DifficultWordsImp(
             .toMutableMap()
 
     private var currentWord by mutableStateOf(null as DifficultWordAdapter?)
+    private val traversed = mutableSetOf<Int>()
 
     override fun getTraversed(): Map<Int, Word> {
-        return words
-            .mapValues { (_, word) -> word.word }
-            .filterNot { (_, word) -> word.isDifficult }
+        return traversed.associateWith { id -> words[id]?.word!! }
     }
 
     override fun getProgress(): Float {
@@ -37,12 +36,22 @@ class DifficultWordsImp(
 
     override fun neglect(id: Int) {
         words.remove(id)
+        traversed.remove(id)
+
         gofnotify()
     }
 
     override fun emend(word: SessionWord) {
-        words[word.getId()]?.word = word.getWord()
+        val realWord = word.getWord()
+
+        words[word.getId()]?.word = realWord
         words[word.getId()]?.changeState((word.adaptee() as DifficultWord).state)
+
+        if (!realWord.isDifficult) {
+            traversed.add(word.getId())
+        } else {
+            traversed.remove(word.getId())
+        }
 
         gofnotify()
     }
@@ -56,7 +65,10 @@ class DifficultWordsImp(
     }
 
     override fun next() {
-        val word = words.values.filter { word -> word.word.isDifficult }.randomOrNull()
+        val word = words.values
+            .filter { word -> word.word.isDifficult && word.id != currentWord?.getId() }
+            .ifEmpty { words.values.filter { word -> word.word.isDifficult } }
+            .randomOrNull()
 
         if (word != null) {
             currentWord = DifficultWordAdapter(word)

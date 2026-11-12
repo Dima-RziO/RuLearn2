@@ -486,8 +486,8 @@ fun AboutDialog(onDismissRequest: () -> Unit) {
         text = {
             Text(
                 text = "Changelog:\n" +
-                        "• Learned words are now exported in .txt file\n" +
-                        "• ...and other improvements"
+                        "• Card flip added to guessing tests\n" +
+                        "• General bug fixes and other improvements"
             )
         }
     )
